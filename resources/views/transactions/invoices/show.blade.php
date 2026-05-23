@@ -15,6 +15,8 @@
     @php
         $logoPath = $company->company_logo_web_path ?: 'assets/images/hariman-nexus-wordmark.png';
         $currencySymbol = $invoice->currency?->symbol ?: $invoice->currency?->code;
+        $companyContact = $company->phone();
+        $companyAddress = trim($company->company_address ?: collect([$company->company_location, $company->company_location_country])->filter()->implode(', '));
     @endphp
 
     <style>
@@ -42,7 +44,7 @@
                 <div class="border-b border-slate-200 py-6">
                     <h3 class="text-xs font-semibold uppercase tracking-widest text-slate-500">{{ __('Bill To') }}</h3>
                     <p class="mt-3 font-semibold text-slate-950">{{ $invoice->client?->name }}</p>
-                    <p class="whitespace-pre-line text-sm text-slate-600">{{ $invoice->client?->client_code }}<br>{{ $invoice->client?->address }}<br>{{ $invoice->client?->email }}<br>{{ $invoice->client?->phone }}</p>
+                    <p class="whitespace-pre-line text-sm text-slate-600">{{ $invoice->client?->address }}<br>{{ $invoice->client?->email }}<br>{{ $invoice->client?->phone }}</p>
                 </div>
 
                 @include('transactions.invoices.partials.document-items')
@@ -53,6 +55,21 @@
                         <p class="mt-2 whitespace-pre-line">{{ $invoice->termCondition->content }}</p>
                     </div>
                 @endif
+
+                <div class="mt-8 border-t border-slate-200 pt-4 text-center text-xs leading-6 text-slate-500">
+                    @if ($company->company_email)
+                        <span><strong class="text-slate-700">{{ __('Email:') }}</strong> {{ $company->company_email }}</span>
+                    @endif
+                    @if ($companyContact)
+                        @if ($company->company_email) <span class="px-2">|</span> @endif
+                        <span><strong class="text-slate-700">{{ __('Contact:') }}</strong> {{ $companyContact }}</span>
+                    @endif
+                    @if ($companyAddress)
+                        @if ($company->company_email || $companyContact) <span class="px-2">|</span> @endif
+                        <span><strong class="text-slate-700">{{ __('Address:') }}</strong> <span class="whitespace-pre-line">{{ $companyAddress }}</span></span>
+                    @endif
+                    <p>{{ __('This is a computer-generated invoice and does not require a physical signature.') }}</p>
+                </div>
             </section>
         </div>
     </div>

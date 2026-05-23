@@ -15,6 +15,7 @@
                     <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                         {{ __('Dashboard') }}
                     </x-nav-link>
+                    @canany(['view projects', 'view clients', 'view products', 'view services', 'view terms'])
                     <x-dropdown align="left" width="48">
                         <x-slot name="trigger">
                             <button class="inline-flex h-16 items-center border-b-2 px-1 pt-1 {{ request()->routeIs('sales.*') ? 'border-indigo-400 text-gray-900' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700' }} text-sm font-medium leading-5 transition duration-150 ease-in-out focus:outline-none">
@@ -26,23 +27,35 @@
                         </x-slot>
 
                         <x-slot name="content">
+                            @can('view projects')
                             <x-dropdown-link :href="route('sales.projects.index')">
                                 {{ __('Projects') }}
                             </x-dropdown-link>
+                            @endcan
+                            @can('view clients')
                             <x-dropdown-link :href="route('sales.clients.index')">
                                 {{ __('Clients') }}
                             </x-dropdown-link>
+                            @endcan
+                            @can('view products')
                             <x-dropdown-link :href="route('sales.products.index')">
                                 {{ __('Products') }}
                             </x-dropdown-link>
+                            @endcan
+                            @can('view services')
                             <x-dropdown-link :href="route('sales.services.index')">
                                 {{ __('Services') }}
                             </x-dropdown-link>
+                            @endcan
+                            @can('view terms')
                             <x-dropdown-link :href="route('sales.terms.index')">
                                 {{ __('Terms') }}
                             </x-dropdown-link>
+                            @endcan
                         </x-slot>
                     </x-dropdown>
+                    @endcanany
+                    @canany(['view quotations', 'view invoices'])
                     <x-dropdown align="left" width="48">
                         <x-slot name="trigger">
                             <button class="inline-flex h-16 items-center border-b-2 px-1 pt-1 {{ request()->routeIs('transactions.*') ? 'border-indigo-400 text-gray-900' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700' }} text-sm font-medium leading-5 transition duration-150 ease-in-out focus:outline-none">
@@ -54,14 +67,25 @@
                         </x-slot>
 
                         <x-slot name="content">
+                            @can('view quotations')
                             <x-dropdown-link :href="route('transactions.quotations.index')">
                                 {{ __('Quotations') }}
                             </x-dropdown-link>
+                            @endcan
+                            @can('view invoices')
                             <x-dropdown-link :href="route('transactions.invoices.index')">
                                 {{ __('Invoices') }}
                             </x-dropdown-link>
+                            @endcan
                         </x-slot>
                     </x-dropdown>
+                    @endcanany
+                    @can('view reports')
+                    <x-nav-link :href="route('reports.index')" :active="request()->routeIs('reports.*')">
+                        {{ __('Reports') }}
+                    </x-nav-link>
+                    @endcan
+                    @can('manage settings')
                     <x-dropdown align="left" width="48">
                         <x-slot name="trigger">
                             <button class="inline-flex h-16 items-center border-b-2 px-1 pt-1 {{ request()->routeIs('settings.*') ? 'border-indigo-400 text-gray-900' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700' }} text-sm font-medium leading-5 transition duration-150 ease-in-out focus:outline-none">
@@ -90,6 +114,8 @@
                             </x-dropdown-link>
                         </x-slot>
                     </x-dropdown>
+                    @endcan
+                    @canany(['view users', 'create users', 'view activity logs'])
                     <x-dropdown align="left" width="48">
                         <x-slot name="trigger">
                             <button class="inline-flex h-16 items-center border-b-2 px-1 pt-1 {{ request()->routeIs('register') ? 'border-indigo-400 text-gray-900' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700' }} text-sm font-medium leading-5 transition duration-150 ease-in-out focus:outline-none">
@@ -104,8 +130,14 @@
                             <x-dropdown-link :href="route('register')">
                                 {{ __('Add User') }}
                             </x-dropdown-link>
+                            @can('view activity logs')
+                            <x-dropdown-link :href="route('activity-logs.index')">
+                                {{ __('Activity Logs') }}
+                            </x-dropdown-link>
+                            @endcan
                         </x-slot>
                     </x-dropdown>
+                    @endcanany
                 </div>
             </div>
 
@@ -161,27 +193,47 @@
             <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                 {{ __('Dashboard') }}
             </x-responsive-nav-link>
+            @can('view projects')
             <x-responsive-nav-link :href="route('sales.projects.index')" :active="request()->routeIs('sales.projects.*')">
                 {{ __('Operations / Projects') }}
             </x-responsive-nav-link>
+            @endcan
+            @can('view clients')
             <x-responsive-nav-link :href="route('sales.clients.index')" :active="request()->routeIs('sales.clients.*')">
                 {{ __('Operations / Clients') }}
             </x-responsive-nav-link>
+            @endcan
+            @can('view products')
             <x-responsive-nav-link :href="route('sales.products.index')" :active="request()->routeIs('sales.products.*')">
                 {{ __('Operations / Products') }}
             </x-responsive-nav-link>
+            @endcan
+            @can('view services')
             <x-responsive-nav-link :href="route('sales.services.index')" :active="request()->routeIs('sales.services.*')">
                 {{ __('Operations / Services') }}
             </x-responsive-nav-link>
+            @endcan
+            @can('view terms')
             <x-responsive-nav-link :href="route('sales.terms.index')" :active="request()->routeIs('sales.terms.*')">
                 {{ __('Operations / Terms') }}
             </x-responsive-nav-link>
+            @endcan
+            @can('view quotations')
             <x-responsive-nav-link :href="route('transactions.quotations.index')" :active="request()->routeIs('transactions.quotations.*')">
                 {{ __('Transactions / Quotations') }}
             </x-responsive-nav-link>
+            @endcan
+            @can('view invoices')
             <x-responsive-nav-link :href="route('transactions.invoices.index')" :active="request()->routeIs('transactions.invoices.*')">
                 {{ __('Transactions / Invoices') }}
             </x-responsive-nav-link>
+            @endcan
+            @can('view reports')
+            <x-responsive-nav-link :href="route('reports.index')" :active="request()->routeIs('reports.*')">
+                {{ __('Reports') }}
+            </x-responsive-nav-link>
+            @endcan
+            @can('manage settings')
             <x-responsive-nav-link :href="route('settings.company.edit')" :active="request()->routeIs('settings.company.*')">
                 {{ __('Settings / Company Setup') }}
             </x-responsive-nav-link>
@@ -197,9 +249,17 @@
             <x-responsive-nav-link :href="route('settings.numbering.edit')" :active="request()->routeIs('settings.numbering.*')">
                 {{ __('Settings / Numbering') }}
             </x-responsive-nav-link>
+            @endcan
+            @canany(['view users', 'create users'])
             <x-responsive-nav-link :href="route('register')" :active="request()->routeIs('register')">
                 {{ __('User Access / Add User') }}
             </x-responsive-nav-link>
+            @endcanany
+            @can('view activity logs')
+            <x-responsive-nav-link :href="route('activity-logs.index')" :active="request()->routeIs('activity-logs.*')">
+                {{ __('User Access / Activity Logs') }}
+            </x-responsive-nav-link>
+            @endcan
         </div>
 
         <!-- Responsive Settings Options -->

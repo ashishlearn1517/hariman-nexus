@@ -17,6 +17,27 @@ test('authenticated users can view terms page', function () {
     $response->assertOk();
     $response->assertSee('Add Term');
     $response->assertSee('Terms List');
+    $response->assertSee('Search terms...');
+});
+
+test('authenticated users can search terms', function () {
+    $user = User::factory()->create();
+    TermCondition::create([
+        'name' => 'Standard Payment Terms',
+        'content' => 'Payment is due within 30 days of invoice date.',
+        'status' => TermCondition::STATUS_ACTIVE,
+    ]);
+    TermCondition::create([
+        'name' => 'Advance Payment Terms',
+        'content' => 'Payment is due before delivery.',
+        'status' => TermCondition::STATUS_ACTIVE,
+    ]);
+
+    $response = $this->actingAs($user)->get('/sales/terms?search=Standard');
+
+    $response->assertOk();
+    $response->assertSee('Standard Payment Terms');
+    $response->assertDontSee('Advance Payment Terms');
 });
 
 test('term name and content are required', function () {

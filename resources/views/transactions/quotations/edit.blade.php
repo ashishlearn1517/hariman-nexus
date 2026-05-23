@@ -115,17 +115,28 @@
                                     <template x-for="(row, index) in rows" :key="row.key">
                                         <tr>
                                             <td class="px-4 py-3">
-                                                <select name="item_type[]" x-model="row.type" x-on:change="row.itemId = ''; row.rate = 0" class="w-32 rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                                <select name="item_type[]" x-model="row.type" x-on:change="row.itemId = ''; row.itemSearch = ''; row.rate = 0" class="w-32 rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                                                     <option value="service">{{ __('Service') }}</option>
                                                     <option value="product">{{ __('Product') }}</option>
                                                 </select>
                                             </td>
-                                            <td class="min-w-64 px-4 py-3">
-                                                <select name="item_source_id[]" x-model="row.itemId" x-on:change="syncRate(row)" class="w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
+                                            <td class="min-w-72 px-4 py-3">
+                                                <input type="hidden" name="item_source_id[]" x-model="row.itemId">
+                                                <input
+                                                    type="search"
+                                                    x-model="row.itemSearch"
+                                                    x-on:input="syncItemFromSearch(row)"
+                                                    x-on:change="syncItemFromSearch(row)"
+                                                    :list="`quotation-edit-item-options-${row.key}`"
+                                                    placeholder="{{ __('Search item...') }}"
+                                                    class="w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                                    required
+                                                >
+                                                <datalist :id="`quotation-edit-item-options-${row.key}`">
                                                     <template x-for="item in optionsFor(row.type)" :key="`${row.type}-${item.id}`">
-                                                        <option :value="item.id" x-text="item.label"></option>
+                                                        <option :value="item.label"></option>
                                                     </template>
-                                                </select>
+                                                </datalist>
                                             </td>
                                             <td class="px-4 py-3"><input name="quantity[]" type="number" min="0.01" step="0.01" x-model.number="row.quantity" class="w-24 rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required></td>
                                             <td class="px-4 py-3"><input name="rate[]" type="number" min="0" step="0.01" x-model.number="row.rate" class="w-32 rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required></td>
@@ -152,9 +163,12 @@
                 rows: @js($quotation->items->map(fn ($item) => ['key' => $item->id, 'type' => $item->item_type, 'itemId' => (string) $item->item_source_id, 'quantity' => (float) $item->quantity, 'rate' => (float) $item->rate])->values()),
                 serviceOptions: @js($services->map(fn ($service) => ['id' => (string) $service->id, 'label' => $service->short_name.' - '.$service->long_name, 'rate' => (float) $service->default_rate])->values()),
                 productOptions: @js($products->map(fn ($product) => ['id' => (string) $product->id, 'label' => $product->product_code.' - '.$product->name, 'rate' => (float) $product->unit_price])->values()),
+                init() {
+                    this.rows = this.rows.map((row) => ({ ...row, itemSearch: row.itemSearch || this.selectedLabel(row) }));
+                },
                 addRow(type) {
                     const list = this.optionsFor(type);
-                    this.rows.push({ key: Date.now() + Math.random(), type, itemId: list[0]?.id || '', quantity: 1, rate: list[0]?.rate || 0 });
+                    this.rows.push({ key: Date.now() + Math.random(), type, itemId: '', itemSearch: '', quantity: 1, rate: 0 });
                 },
                 removeRow(index) {
                     if (this.rows.length > 1) {
@@ -167,6 +181,16 @@
                 syncRate(row) {
                     const option = this.optionsFor(row.type).find((item) => String(item.id) === String(row.itemId));
                     row.rate = option ? option.rate : 0;
+                    row.itemSearch = option ? option.label : '';
+                },
+                syncItemFromSearch(row) {
+                    const option = this.optionsFor(row.type).find((item) => item.label.toLowerCase() === String(row.itemSearch || '').toLowerCase());
+                    row.itemId = option ? String(option.id) : '';
+                    row.rate = option ? option.rate : 0;
+                },
+                selectedLabel(row) {
+                    const option = this.optionsFor(row.type).find((item) => String(item.id) === String(row.itemId));
+                    return option ? option.label : '';
                 },
                 money(value) {
                     return Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });

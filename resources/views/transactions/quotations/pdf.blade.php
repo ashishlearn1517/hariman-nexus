@@ -180,7 +180,6 @@
                 <div class="label">Prepared For</div>
                 <div class="client-name">{{ $quotation->client?->name }}</div>
                 <div class="muted">
-                    {{ $quotation->client?->client_code }}<br>
                     {!! nl2br(e($quotation->client?->address)) !!}<br>
                     {{ $quotation->client?->email }}<br>
                     {{ $quotation->client?->phone }}

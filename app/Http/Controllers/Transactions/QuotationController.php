@@ -15,6 +15,7 @@ use App\Models\QuotationItem;
 use App\Models\Service;
 use App\Models\TaxSetting;
 use App\Models\TermCondition;
+use App\Support\ActivityLogger;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -75,6 +76,8 @@ class QuotationController extends Controller
             'action' => ['required', Rule::in(['save', 'approve', 'reject'])],
         ]);
 
+        $oldStatus = $quotation->status;
+
         DB::transaction(function () use ($quotation, $validated): void {
             foreach ($validated['rate'] as $itemId => $rate) {
                 $item = $quotation->items()->whereKey($itemId)->firstOrFail();
@@ -102,6 +105,18 @@ class QuotationController extends Controller
                 ]);
             }
         });
+
+        $quotation->refresh();
+        $actionDescription = match ($validated['action']) {
+            'approve' => 'approved',
+            'reject' => 'rejected',
+            default => 'updated rates for',
+        };
+        ActivityLogger::log('quotations', $validated['action'] === 'save' ? 'rates_updated' : $validated['action'], auth()->user()->name.' '.$actionDescription.' Quotation '.$quotation->quotation_no.'.');
+
+        if ($oldStatus !== $quotation->status) {
+            ActivityLogger::log('quotations', 'status_changed', 'Quotation '.$quotation->quotation_no.' status changed from '.$oldStatus.' to '.$quotation->status.'.');
+        }
 
         return redirect()
             ->route('transactions.quotations.status', $quotation)
@@ -138,6 +153,7 @@ class QuotationController extends Controller
             ]);
 
             $quotation->items()->createMany($items);
+            ActivityLogger::log('quotations', 'created', auth()->user()->name.' created Quotation '.$quotation->quotation_no.'.');
 
             $numbering->update([
                 'next_quotation_number' => max($numbering->next_quotation_number, $sequence + 1),
@@ -163,6 +179,7 @@ class QuotationController extends Controller
         abort_if($quotation->status === Quotation::STATUS_APPROVED, 403);
 
         $validated = $this->validatedQuotation($request);
+        $quotationNo = $quotation->quotation_no;
 
         DB::transaction(function () use ($quotation, $validated): void {
             $items = $this->buildItems($validated);
@@ -187,6 +204,7 @@ class QuotationController extends Controller
             $quotation->items()->delete();
             $quotation->items()->createMany($items);
         });
+        ActivityLogger::log('quotations', 'updated', $request->user()->name.' edited Quotation '.$quotationNo.'.');
 
         return redirect()
             ->route('transactions.quotations.index')
@@ -232,6 +250,7 @@ class QuotationController extends Controller
 
             return $copy;
         });
+        ActivityLogger::log('quotations', 'duplicated', auth()->user()->name.' duplicated Quotation '.$quotation->quotation_no.' as '.$newQuotation->quotation_no.'.');
 
         return redirect()
             ->route('transactions.quotations.edit', $newQuotation)
@@ -246,7 +265,11 @@ class QuotationController extends Controller
                 ->with('status', 'quotation-delete-blocked-converted');
         }
 
-        $quotation->delete();
+        DB::transaction(function () use ($quotation): void {
+            $quotationNo = $quotation->quotation_no;
+            $quotation->delete();
+            ActivityLogger::log('quotations', 'archived', auth()->user()->name.' archived Quotation '.$quotationNo.'.');
+        });
 
         return redirect()
             ->route('transactions.quotations.index')
@@ -298,6 +321,7 @@ class QuotationController extends Controller
             'status' => Quotation::STATUS_SENT,
             'sent_at' => now(),
         ]);
+        ActivityLogger::log('quotations', 'sent', auth()->user()->name.' sent Quotation '.$quotation->quotation_no.'.');
 
         return redirect()
             ->route('transactions.quotations.index')

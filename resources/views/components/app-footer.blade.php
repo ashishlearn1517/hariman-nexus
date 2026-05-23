@@ -3,8 +3,8 @@
         <img src="{{ asset('assets/images/hariman-nexus-symbol.png') }}" alt="Hariman Nexus" class="h-6 w-6 rounded-sm object-cover">
         <span class="font-semibold text-[#10243f]">Hariman Nexus</span>
         <span>Designed and developed by Ashish for</span>
-        <a href="http://localhost/invoice/public/hariman" class="font-medium text-slate-700 hover:text-[#10243f] hover:underline">
-            Hariman Solutions
+        <a href="{{ route('hariman') }}" class="font-medium text-slate-700 hover:text-[#10243f] hover:underline">
+            Hariman Technologies
         </a>
         <span>.</span>
     </div>

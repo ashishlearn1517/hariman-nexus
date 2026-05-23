@@ -17,10 +17,14 @@
                 'invoice-updated' => 'Invoice updated successfully.',
                 'invoice-deleted' => 'Invoice deleted successfully.',
                 'invoice-sent' => 'Invoice email sent successfully.',
+                'invoice-reminder-sent' => 'Reminder email sent successfully.',
+                'invoice-overdue-sent' => 'Overdue email sent successfully.',
                 'invoice-email-not-configured' => 'Email settings or client email are missing. Please update Email Settings and Client details first.',
+                'invoice-reminder-not-ready' => 'Reminder email can be sent only 24 hours before the due date for invoices with a balance due.',
+                'invoice-overdue-not-ready' => 'Overdue email can be sent only from the day after the due date for invoices with a balance due.',
             ] as $key => $message)
                 @if (session('status') === $key)
-                    <div class="rounded-md {{ $key === 'invoice-email-not-configured' ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700' }} p-4 text-sm font-medium">{{ __($message) }}</div>
+                    <div class="rounded-md {{ in_array($key, ['invoice-email-not-configured', 'invoice-reminder-not-ready', 'invoice-overdue-not-ready'], true) ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700' }} p-4 text-sm font-medium">{{ __($message) }}</div>
                 @endif
             @endforeach
 
@@ -236,13 +240,34 @@
                                         <span class="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">{{ $statuses[$invoice->status] ?? $invoice->status }}</span>
                                     </td>
                                     <td class="min-w-[430px] px-5 py-4">
+                                        @php
+                                            $hasBalanceDue = (float) $invoice->balance_due > 0;
+                                            $canSendReminder = $invoice->due_date
+                                                && $hasBalanceDue
+                                                && ! in_array($invoice->status, [\App\Models\Invoice::STATUS_PAID, \App\Models\Invoice::STATUS_CANCELLED], true)
+                                                && $invoice->due_date->isTomorrow();
+                                            $canSendOverdue = $invoice->due_date
+                                                && $hasBalanceDue
+                                                && ! in_array($invoice->status, [\App\Models\Invoice::STATUS_PAID, \App\Models\Invoice::STATUS_CANCELLED], true)
+                                                && now()->startOfDay()->gt($invoice->due_date->copy()->startOfDay());
+                                        @endphp
                                         <div class="flex flex-wrap gap-2">
                                             <a href="{{ route('transactions.invoices.show', $invoice) }}" class="rounded-md bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-800 hover:bg-indigo-100">{{ __('View') }}</a>
+                                            @can('edit invoices')
                                             <a href="{{ route('transactions.invoices.edit', $invoice) }}" class="rounded-md bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-800 hover:bg-indigo-100">{{ __('Edit') }}</a>
+                                            @endcan
+                                            @can('create invoices')
                                             <form method="POST" action="{{ route('transactions.invoices.duplicate', $invoice) }}">@csrf<button class="rounded-md bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-800 hover:bg-indigo-100">{{ __('Duplicate') }}</button></form>
+                                            @endcan
+                                            @can('delete invoices')
                                             <form method="POST" action="{{ route('transactions.invoices.destroy', $invoice) }}" onsubmit="return confirm('Delete this invoice completely?');">@csrf @method('DELETE')<button class="rounded-md bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100">{{ __('Delete') }}</button></form>
+                                            @endcan
                                             <a href="{{ route('transactions.invoices.pdf', $invoice) }}" class="rounded-md bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-800 hover:bg-indigo-100">{{ __('PDF') }}</a>
+                                            @can('send invoices')
                                             <form method="POST" action="{{ route('transactions.invoices.send', $invoice) }}">@csrf<button class="rounded-md bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-800 hover:bg-indigo-100">{{ __('Send') }}</button></form>
+                                            <form method="POST" action="{{ route('transactions.invoices.send-reminder', $invoice) }}">@csrf<button @disabled(! $canSendReminder) title="{{ $canSendReminder ? __('Send payment reminder') : __('Available 24 hours before due date') }}" class="rounded-md px-3 py-2 text-xs font-semibold {{ $canSendReminder ? 'bg-amber-50 text-amber-700 hover:bg-amber-100' : 'cursor-not-allowed bg-slate-100 text-slate-400' }}">{{ __('Reminder') }}</button></form>
+                                            <form method="POST" action="{{ route('transactions.invoices.send-overdue', $invoice) }}">@csrf<button @disabled(! $canSendOverdue) title="{{ $canSendOverdue ? __('Send overdue email') : __('Available from the day after due date') }}" class="rounded-md px-3 py-2 text-xs font-semibold {{ $canSendOverdue ? 'bg-rose-50 text-rose-700 hover:bg-rose-100' : 'cursor-not-allowed bg-slate-100 text-slate-400' }}">{{ __('Overdue') }}</button></form>
+                                            @endcan
                                             <a href="{{ route('transactions.invoices.payment-status', $invoice) }}" class="rounded-md bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100">{{ __('Payment Status') }}</a>
                                         </div>
                                     </td>

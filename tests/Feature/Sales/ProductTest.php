@@ -18,6 +18,31 @@ test('authenticated users can view products page', function () {
     $response->assertSee('Add Product');
     $response->assertSee('Product List');
     $response->assertSee('PROD-0001');
+    $response->assertSee('Search products...');
+});
+
+test('authenticated users can search products', function () {
+    $user = User::factory()->create();
+    Product::create([
+        'product_code' => 'PROD-0001',
+        'name' => 'HP 85A Cartridge',
+        'description' => 'Original toner cartridge',
+        'unit_price' => 125.50,
+        'status' => Product::STATUS_ACTIVE,
+    ]);
+    Product::create([
+        'product_code' => 'PROD-0002',
+        'name' => 'Dell Monitor',
+        'description' => 'Display screen',
+        'unit_price' => 220,
+        'status' => Product::STATUS_ACTIVE,
+    ]);
+
+    $response = $this->actingAs($user)->get('/sales/products?search=Cartridge');
+
+    $response->assertOk();
+    $response->assertSee('HP 85A Cartridge');
+    $response->assertDontSee('Dell Monitor');
 });
 
 test('product name and unit price are required', function () {

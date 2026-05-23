@@ -6,6 +6,7 @@
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
         <title>{{ config('app.name', 'Hariman Nexus') }}</title>
+        <link rel="icon" type="image/png" href="{{ asset('assets/images/hariman-nexus-symbol.png') }}">
 
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">
@@ -29,6 +30,7 @@
 
             <!-- Page Content -->
             <main class="flex-1">
+                <x-app-notifications />
                 {{ $slot }}
             </main>
 

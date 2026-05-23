@@ -6,6 +6,8 @@
     $pdfLogoFile = is_file($jpegFallback) ? $jpegFallback : $logoFile;
     $canRenderLogo = is_file($pdfLogoFile) && (extension_loaded('gd') || in_array(strtolower(pathinfo($pdfLogoFile, PATHINFO_EXTENSION)), ['jpg', 'jpeg'], true));
     $currencySymbol = $invoice->currency?->symbol ?: $invoice->currency?->code;
+    $companyContact = $company->phone();
+    $companyAddress = trim($company->company_address ?: collect([$company->company_location, $company->company_location_country])->filter()->implode(', '));
 @endphp
 <!DOCTYPE html>
 <html>
@@ -32,7 +34,8 @@
         .amount { font-weight: 700; text-align: right; white-space: nowrap; }
         .grand td { font-size: 14px; font-weight: 700; padding-top: 10px; }
         .terms { border-top: 1px solid #e2e8f0; color: #475569; margin-top: 18px; padding-top: 14px; }
-        .footer { border-top: 1px solid #e2e8f0; color: #64748b; font-size: 9px; margin-top: 18px; padding-top: 9px; text-align: center; }
+        .footer { border-top: 1px solid #e2e8f0; color: #64748b; font-size: 9px; line-height: 1.6; margin-top: 18px; padding-top: 9px; text-align: center; }
+        .footer strong { color: #334155; }
     </style>
 </head>
 <body>
@@ -55,7 +58,7 @@
             <td>
                 <div class="label">Bill To</div>
                 <strong>{{ $invoice->client?->name }}</strong><br>
-                <span style="color:#475569;">{{ $invoice->client?->client_code }}<br>{!! nl2br(e($invoice->client?->address)) !!}<br>{{ $invoice->client?->email }}<br>{{ $invoice->client?->phone }}</span>
+                <span style="color:#475569;">{!! nl2br(e($invoice->client?->address)) !!}<br>{{ $invoice->client?->email }}<br>{{ $invoice->client?->phone }}</span>
             </td>
         </tr>
     </table>
@@ -93,6 +96,20 @@
         <div class="terms"><strong>{{ $invoice->termCondition->name }}</strong><br>{!! nl2br(e($invoice->termCondition->content)) !!}</div>
     @endif
 
-    <div class="footer">This is a computer-generated invoice and does not require a physical signature.</div>
+    <div class="footer">
+        @if ($company->company_email)
+            <strong>Email:</strong> {{ $company->company_email }}
+        @endif
+        @if ($companyContact)
+            @if ($company->company_email) &nbsp;|&nbsp; @endif
+            <strong>Contact:</strong> {{ $companyContact }}
+        @endif
+        @if ($companyAddress)
+            @if ($company->company_email || $companyContact) &nbsp;|&nbsp; @endif
+            <strong>Address:</strong> {!! nl2br(e($companyAddress)) !!}
+        @endif
+        <br>
+        This is a computer-generated invoice and does not require a physical signature.
+    </div>
 </body>
 </html>

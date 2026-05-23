@@ -12,15 +12,24 @@ use Illuminate\View\View;
 
 class ProductController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
+        $search = trim((string) $request->query('search', ''));
+
         return view('sales.products.index', [
             'products' => Product::query()
+                ->when($search !== '', fn ($query) => $query->where(function ($query) use ($search): void {
+                    $query->where('product_code', 'like', "%{$search}%")
+                        ->orWhere('name', 'like', "%{$search}%")
+                        ->orWhere('description', 'like', "%{$search}%")
+                        ->orWhere('status', 'like', "%{$search}%");
+                }))
                 ->latest()
                 ->paginate(10)
                 ->withQueryString(),
             'statuses' => Product::statusOptions(),
             'nextProductCode' => $this->nextProductCode(),
+            'search' => $search,
         ]);
     }
 

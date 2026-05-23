@@ -11,6 +11,9 @@
                 @js($products->map(fn ($product) => ['id' => (string) $product->id, 'label' => $product->product_code.' - '.$product->name, 'rate' => (float) $product->unit_price])->values()),
                 @js($prefillProductOptions ?? collect())
             ),
+            init() {
+                this.rows = this.rows.map((row) => ({ ...row, itemSearch: row.itemSearch || this.selectedLabel(row) }));
+            },
             get subtotal() {
                 return this.rows.reduce((sum, row) => sum + (Number(row.quantity || 0) * Number(row.rate || 0)), 0);
             },
@@ -21,7 +24,7 @@
                 return this.subtotal + this.taxAmount;
             },
             addRow(type) {
-                this.rows.push({ key: Date.now() + Math.random(), type, itemId: '', quantity: 1, rate: 0 });
+                this.rows.push({ key: Date.now() + Math.random(), type, itemId: '', itemSearch: '', quantity: 1, rate: 0 });
             },
             removeRow(index) {
                 if (this.rows.length > 1) {
@@ -33,6 +36,12 @@
             },
             syncRate(row) {
                 const option = this.optionsFor(row.type).find((item) => String(item.id) === String(row.itemId));
+                row.rate = option ? option.rate : 0;
+                row.itemSearch = option ? option.label : '';
+            },
+            syncItemFromSearch(row) {
+                const option = this.optionsFor(row.type).find((item) => item.label.toLowerCase() === String(row.itemSearch || '').toLowerCase());
+                row.itemId = option ? String(option.id) : '';
                 row.rate = option ? option.rate : 0;
             },
             selectedLabel(row) {

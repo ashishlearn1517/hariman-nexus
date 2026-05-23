@@ -32,9 +32,27 @@ Route::middleware('guest')->group(function () {
 
 Route::middleware('auth')->group(function () {
     Route::get('register', [RegisteredUserController::class, 'create'])
+        ->middleware('can:view users')
         ->name('register');
 
-    Route::post('register', [RegisteredUserController::class, 'store']);
+    Route::post('register', [RegisteredUserController::class, 'store'])
+        ->middleware('can:create users');
+
+    Route::get('user-access/{user}/edit', [RegisteredUserController::class, 'edit'])
+        ->middleware('can:edit users')
+        ->name('users.edit');
+
+    Route::patch('user-access/{user}', [RegisteredUserController::class, 'update'])
+        ->middleware('can:edit users')
+        ->name('users.update');
+
+    Route::patch('user-access/{user}/status', [RegisteredUserController::class, 'toggleStatus'])
+        ->middleware('can:deactivate users')
+        ->name('users.status');
+
+    Route::delete('user-access/{user}', [RegisteredUserController::class, 'destroy'])
+        ->middleware('can:delete users')
+        ->name('users.destroy');
 
     Route::get('verify-email', EmailVerificationPromptController::class)
         ->name('verification.notice');

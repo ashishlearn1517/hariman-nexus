@@ -11,14 +11,22 @@ use Illuminate\View\View;
 
 class ServiceController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
+        $search = trim((string) $request->query('search', ''));
+
         return view('sales.services.index', [
             'services' => Service::query()
+                ->when($search !== '', fn ($query) => $query->where(function ($query) use ($search): void {
+                    $query->where('short_name', 'like', "%{$search}%")
+                        ->orWhere('long_name', 'like', "%{$search}%")
+                        ->orWhere('status', 'like', "%{$search}%");
+                }))
                 ->latest()
                 ->paginate(10)
                 ->withQueryString(),
             'statuses' => Service::statusOptions(),
+            'search' => $search,
         ]);
     }
 

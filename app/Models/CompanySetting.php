@@ -17,6 +17,7 @@ class CompanySetting extends Model
         'company_phone_local',
         'company_location_country',
         'company_location',
+        'company_address',
         'website',
         'tax_registration_number',
         'company_logo_path',

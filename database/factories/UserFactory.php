@@ -4,8 +4,11 @@ namespace Database\Factories;
 
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Spatie\Permission\Models\Role;
 
 /**
  * @extends Factory<User>
@@ -17,6 +20,19 @@ class UserFactory extends Factory
      */
     protected static ?string $password;
 
+    public function configure(): static
+    {
+        return $this->afterCreating(function (User $user): void {
+            if (! App::environment('testing') || $user->roles()->exists()) {
+                return;
+            }
+
+            if (Schema::hasTable('roles') && Role::query()->where('name', User::ROLE_SUPER_ADMIN)->exists()) {
+                $user->assignRole(User::ROLE_SUPER_ADMIN);
+            }
+        });
+    }
+
     /**
      * Define the model's default state.
      *
@@ -27,7 +43,8 @@ class UserFactory extends Factory
         return [
             'name' => fake()->name(),
             'email' => fake()->unique()->safeEmail(),
-            'role' => User::ROLE_STAFF,
+            'role' => User::ROLE_SUPER_ADMIN,
+            'is_active' => true,
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),

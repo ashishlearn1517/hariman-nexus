@@ -97,6 +97,12 @@
                                     </select>
                                     <x-input-error class="mt-2" :messages="$errors->get('company_location_country')" />
                                 </div>
+
+                                <div class="md:col-span-3">
+                                    <x-input-label for="company_address" :value="__('Company Address')" />
+                                    <textarea id="company_address" name="company_address" rows="4" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="Street, building, city, state, postal code">{{ old('company_address', $company->company_address) }}</textarea>
+                                    <x-input-error class="mt-2" :messages="$errors->get('company_address')" />
+                                </div>
                             </div>
                         </div>
 
@@ -165,6 +171,9 @@
                                     @endif
                                     @if ($company->company_location)
                                         <div>{{ $company->company_location }}</div>
+                                    @endif
+                                    @if ($company->company_address)
+                                        <div class="whitespace-pre-line">{{ $company->company_address }}</div>
                                     @endif
                                     @if ($company->website)
                                         <div>{{ $company->website }}</div>

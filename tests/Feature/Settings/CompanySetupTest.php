@@ -17,6 +17,7 @@ test('authenticated users can view company setup page', function () {
     $response->assertOk();
     $response->assertSee('Company Setup');
     $response->assertSee('Company Profile');
+    $response->assertSee('Company Address');
     $response->assertSee('Afghanistan (+93)');
     $response->assertSee('Zimbabwe (ZW)');
 });
@@ -48,6 +49,7 @@ test('authenticated users can save company setup', function () {
         'company_phone_country' => 'IN',
         'company_phone_local' => '9876543210',
         'company_location_country' => 'IN',
+        'company_address' => "Sardarpura\nJodhpur, Rajasthan 342003",
         'website' => 'https://hariman.example',
         'tax_registration_number' => 'GST-12345',
         'payment_label' => 'Bank Transfer',
@@ -64,6 +66,7 @@ test('authenticated users can save company setup', function () {
         'company_phone_code' => '+91',
         'company_phone_local' => '9876543210',
         'company_location' => 'India',
+        'company_address' => "Sardarpura\nJodhpur, Rajasthan 342003",
         'website' => 'https://hariman.example',
         'tax_registration_number' => 'GST-12345',
         'payment_label' => 'Bank Transfer',

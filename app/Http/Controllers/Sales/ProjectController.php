@@ -10,14 +10,23 @@ use Illuminate\View\View;
 
 class ProjectController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
+        $search = trim((string) $request->query('search', ''));
+
         return view('sales.projects.index', [
             'projects' => Project::query()
+                ->when($search !== '', fn ($query) => $query->where(function ($query) use ($search): void {
+                    $query->where('name', 'like', "%{$search}%")
+                        ->orWhere('expected_delivery_time', 'like', "%{$search}%")
+                        ->orWhere('awarded_to', 'like', "%{$search}%")
+                        ->orWhere('status', 'like', "%{$search}%");
+                }))
                 ->latest()
                 ->paginate(10)
                 ->withQueryString(),
             'statuses' => Project::statusOptions(),
+            'search' => $search,
         ]);
     }
 

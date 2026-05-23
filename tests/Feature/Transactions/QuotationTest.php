@@ -84,6 +84,7 @@ test('authenticated users can view quotation workspace', function () {
     $response->assertSee('Create Quotation');
     $response->assertSee('Quotation List');
     $response->assertSee('Offer Builder');
+    $response->assertSee('Search item...');
 });
 
 test('quotation requires core fields and at least one item', function () {
@@ -194,6 +195,7 @@ test('authenticated users can view and print a quotation with company logo', fun
     $response->assertSee('uploads/settings/company-logo.png', false);
     $response->assertSee('Website Design');
     $response->assertSee('50% advance payment.');
+    $response->assertDontSee('LC-2026-0001');
 });
 
 test('status page can update item rates and approve quotation', function () {

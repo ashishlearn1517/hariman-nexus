@@ -85,9 +85,6 @@
                         <h3 class="text-xs font-semibold uppercase tracking-widest text-slate-500">{{ __('Prepared For') }}</h3>
                         <div class="mt-3 space-y-1 text-sm text-slate-600">
                             <p class="text-base font-semibold text-slate-950">{{ $quotation->client?->name }}</p>
-                            @if ($quotation->client?->client_code)
-                                <p>{{ $quotation->client->client_code }}</p>
-                            @endif
                             @if ($quotation->client?->address)
                                 <p class="whitespace-pre-line">{{ $quotation->client->address }}</p>
                             @endif

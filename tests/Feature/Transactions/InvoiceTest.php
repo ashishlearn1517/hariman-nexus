@@ -1,8 +1,11 @@
 <?php
 
 use App\Models\Client;
+use App\Models\CompanySetting;
 use App\Models\Currency;
+use App\Models\EmailSetting;
 use App\Models\Invoice;
+use App\Models\InvoicePayment;
 use App\Models\NumberingSetting;
 use App\Models\Product;
 use App\Models\Project;
@@ -11,6 +14,9 @@ use App\Models\Service;
 use App\Models\TaxSetting;
 use App\Models\TermCondition;
 use App\Models\User;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Mail;
 
 function invoiceFixtures(): array
 {
@@ -82,6 +88,7 @@ test('authenticated users can view invoice workspace', function () {
     $response->assertSee('Invoice List');
     $response->assertSee('Invoice Builder');
     $response->assertSee('Quotation');
+    $response->assertSee('Search item...');
 });
 
 test('authenticated users can create invoices and list actions', function () {
@@ -122,6 +129,8 @@ test('authenticated users can create invoices and list actions', function () {
     $listResponse->assertSee('Delete');
     $listResponse->assertSee('PDF');
     $listResponse->assertSee('Send');
+    $listResponse->assertSee('Reminder');
+    $listResponse->assertSee('Overdue');
     $listResponse->assertSee('Payment Status');
 });
 
@@ -252,6 +261,16 @@ test('deleting converted invoice releases quotation for deletion or reuse', func
 test('authenticated users can view invoice payment status and download pdf', function () {
     $user = User::factory()->create();
     $fixtures = invoiceFixtures();
+    CompanySetting::create([
+        'singleton_key' => CompanySetting::SINGLETON_KEY,
+        'company_name' => 'Hariman Solutions',
+        'company_email' => 'accounts@hariman.com',
+        'company_phone_code' => '+91',
+        'company_phone_local' => '9876543210',
+        'company_location' => 'Jodhpur',
+        'company_location_country' => 'IN',
+        'company_address' => "Sardarpura\nJodhpur, Rajasthan 342003",
+    ]);
 
     $invoice = Invoice::create([
         'invoice_no' => 'INV-2026-0009',
@@ -280,10 +299,193 @@ test('authenticated users can view invoice payment status and download pdf', fun
     $this->actingAs($user)
         ->get(route('transactions.invoices.payment-status', $invoice, absolute: false))
         ->assertOk()
-        ->assertSee('Payment Posting');
+        ->assertSee('Add Payment Entry')
+        ->assertSee('Payment Entries &amp; Receipts', false);
+
+    $this->actingAs($user)
+        ->get(route('transactions.invoices.show', $invoice, absolute: false))
+        ->assertOk()
+        ->assertSee('Email:')
+        ->assertSee('accounts@hariman.com')
+        ->assertSee('Contact:')
+        ->assertSee('+91 9876543210')
+        ->assertSee('Address:')
+        ->assertSee('Sardarpura')
+        ->assertSee('Jodhpur, Rajasthan 342003')
+        ->assertDontSee('LC-2026-0001');
 
     $this->actingAs($user)
         ->get(route('transactions.invoices.pdf', $invoice, absolute: false))
         ->assertOk()
         ->assertHeader('content-type', 'application/pdf');
+});
+
+test('payment entries support partial and full payment status updates with receipts', function () {
+    $user = User::factory()->create();
+    $fixtures = invoiceFixtures();
+    $invoice = Invoice::create([
+        'invoice_no' => 'INV-2026-0011',
+        'sequence_no' => 11,
+        'client_id' => $fixtures['client']->id,
+        'project_id' => $fixtures['project']->id,
+        'currency_id' => $fixtures['currency']->id,
+        'invoice_date' => '2026-05-22',
+        'due_date' => '2026-06-05',
+        'subtotal' => 1000,
+        'tax_rate_percent' => 0,
+        'tax_amount' => 0,
+        'total' => 1000,
+        'balance_due' => 1000,
+        'status' => Invoice::STATUS_DRAFT,
+    ]);
+
+    $partial = $this->actingAs($user)->post(route('transactions.invoices.payments.store', $invoice, absolute: false), [
+        'payment_date' => '2026-05-23',
+        'amount' => 400,
+        'payment_method' => 'bank_transfer',
+        'receipt_number' => 'RCPT-001',
+        'reference' => 'UTR123',
+        'receipt_file' => UploadedFile::fake()->create('receipt.pdf', 16, 'application/pdf'),
+    ]);
+
+    $partial->assertRedirect(route('transactions.invoices.payment-status', $invoice, absolute: false));
+    $invoice->refresh();
+    expect($invoice->amount_paid)->toBe('400.00')
+        ->and($invoice->balance_due)->toBe('600.00')
+        ->and($invoice->status)->toBe(Invoice::STATUS_PARTIALLY_PAID);
+    $payment = InvoicePayment::first();
+    expect($payment->receipt_web_path)->not->toBeNull();
+    File::deleteDirectory(public_path('uploads/receipts'));
+
+    $this->actingAs($user)->post(route('transactions.invoices.payments.store', $invoice, absolute: false), [
+        'payment_date' => '2026-05-24',
+        'amount' => 600,
+        'payment_method' => 'cash',
+    ])->assertRedirect(route('transactions.invoices.payment-status', $invoice, absolute: false));
+
+    $invoice->refresh();
+    expect($invoice->amount_paid)->toBe('1000.00')
+        ->and($invoice->balance_due)->toBe('0.00')
+        ->and($invoice->status)->toBe(Invoice::STATUS_PAID)
+        ->and($invoice->paid_at)->not->toBeNull();
+});
+
+test('payment status page marks unpaid overdue invoices and deleting payments recalculates balance', function () {
+    $user = User::factory()->create();
+    $fixtures = invoiceFixtures();
+    $invoice = Invoice::create([
+        'invoice_no' => 'INV-2026-0012',
+        'sequence_no' => 12,
+        'client_id' => $fixtures['client']->id,
+        'project_id' => $fixtures['project']->id,
+        'currency_id' => $fixtures['currency']->id,
+        'invoice_date' => '2026-04-01',
+        'due_date' => '2026-04-15',
+        'subtotal' => 1000,
+        'tax_rate_percent' => 0,
+        'tax_amount' => 0,
+        'total' => 1000,
+        'amount_paid' => 0,
+        'balance_due' => 1000,
+        'status' => Invoice::STATUS_DRAFT,
+    ]);
+
+    $this->actingAs($user)->get(route('transactions.invoices.payment-status', $invoice, absolute: false))->assertOk();
+    expect($invoice->refresh()->status)->toBe(Invoice::STATUS_OVERDUE);
+
+    $payment = $invoice->payments()->create([
+        'payment_date' => '2026-05-22',
+        'amount' => 250,
+        'payment_method' => 'cash',
+    ]);
+
+    $this->actingAs($user)->delete(route('transactions.invoices.payments.destroy', [$invoice, $payment], false))
+        ->assertRedirect(route('transactions.invoices.payment-status', $invoice, absolute: false));
+
+    $invoice->refresh();
+    expect($invoice->amount_paid)->toBe('0.00')
+        ->and($invoice->balance_due)->toBe('1000.00')
+        ->and($invoice->status)->toBe(Invoice::STATUS_OVERDUE);
+});
+
+test('reminder email can be sent only one day before invoice due date', function () {
+    Mail::fake();
+    $this->travelTo('2026-05-22 10:00:00');
+
+    $user = User::factory()->create();
+    $fixtures = invoiceFixtures();
+    EmailSetting::create(array_merge(EmailSetting::defaults(), [
+        'mail_host' => 'smtp.example.com',
+        'mail_from_address' => 'billing@example.com',
+        'mail_password' => 'secret',
+    ]));
+
+    $invoice = Invoice::create([
+        'invoice_no' => 'INV-2026-0013',
+        'sequence_no' => 13,
+        'client_id' => $fixtures['client']->id,
+        'project_id' => $fixtures['project']->id,
+        'currency_id' => $fixtures['currency']->id,
+        'invoice_date' => '2026-05-22',
+        'due_date' => '2026-05-23',
+        'subtotal' => 1000,
+        'tax_rate_percent' => 0,
+        'tax_amount' => 0,
+        'total' => 1000,
+        'balance_due' => 1000,
+        'status' => Invoice::STATUS_SENT,
+    ]);
+
+    $this->actingAs($user)
+        ->post(route('transactions.invoices.send-reminder', $invoice, absolute: false))
+        ->assertRedirect(route('transactions.invoices.index', absolute: false))
+        ->assertSessionHas('status', 'invoice-reminder-sent');
+
+    $invoice->update(['due_date' => '2026-05-24']);
+
+    $this->actingAs($user)
+        ->post(route('transactions.invoices.send-reminder', $invoice, absolute: false))
+        ->assertRedirect(route('transactions.invoices.index', absolute: false))
+        ->assertSessionHas('status', 'invoice-reminder-not-ready');
+});
+
+test('overdue email can be sent only after the due date is over', function () {
+    Mail::fake();
+    $this->travelTo('2026-05-22 10:00:00');
+
+    $user = User::factory()->create();
+    $fixtures = invoiceFixtures();
+    EmailSetting::create(array_merge(EmailSetting::defaults(), [
+        'mail_host' => 'smtp.example.com',
+        'mail_from_address' => 'billing@example.com',
+        'mail_password' => 'secret',
+    ]));
+
+    $invoice = Invoice::create([
+        'invoice_no' => 'INV-2026-0014',
+        'sequence_no' => 14,
+        'client_id' => $fixtures['client']->id,
+        'project_id' => $fixtures['project']->id,
+        'currency_id' => $fixtures['currency']->id,
+        'invoice_date' => '2026-05-20',
+        'due_date' => '2026-05-21',
+        'subtotal' => 1000,
+        'tax_rate_percent' => 0,
+        'tax_amount' => 0,
+        'total' => 1000,
+        'balance_due' => 1000,
+        'status' => Invoice::STATUS_SENT,
+    ]);
+
+    $this->actingAs($user)
+        ->post(route('transactions.invoices.send-overdue', $invoice, absolute: false))
+        ->assertRedirect(route('transactions.invoices.index', absolute: false))
+        ->assertSessionHas('status', 'invoice-overdue-sent');
+
+    $invoice->update(['due_date' => '2026-05-22']);
+
+    $this->actingAs($user)
+        ->post(route('transactions.invoices.send-overdue', $invoice, absolute: false))
+        ->assertRedirect(route('transactions.invoices.index', absolute: false))
+        ->assertSessionHas('status', 'invoice-overdue-not-ready');
 });

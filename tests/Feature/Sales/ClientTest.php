@@ -28,6 +28,40 @@ test('authenticated users can view clients page', function () {
     $response->assertOk();
     $response->assertSee('Add Client');
     $response->assertSee('Client List');
+    $response->assertSee('Search clients...');
+});
+
+test('authenticated users can search clients', function () {
+    $user = User::factory()->create();
+    $project = clientProject();
+    Client::create([
+        'client_code' => 'LC-2026-0001',
+        'sequence_no' => 1,
+        'project_id' => $project->id,
+        'name' => 'Acme Stores',
+        'client_type' => Client::TYPE_LOCAL,
+        'email' => 'billing@acme.test',
+        'phone' => '+919999999999',
+        'address' => 'Mumbai',
+        'status' => Client::STATUS_ACTIVE,
+    ]);
+    Client::create([
+        'client_code' => 'LC-2026-0002',
+        'sequence_no' => 2,
+        'project_id' => $project->id,
+        'name' => 'Northline Works',
+        'client_type' => Client::TYPE_LOCAL,
+        'email' => 'accounts@northline.test',
+        'phone' => '+918888888888',
+        'address' => 'Delhi',
+        'status' => Client::STATUS_ACTIVE,
+    ]);
+
+    $response = $this->actingAs($user)->get('/sales/clients?search=Acme');
+
+    $response->assertOk();
+    $response->assertSee('Acme Stores');
+    $response->assertDontSee('Northline Works');
 });
 
 test('client core fields are required', function () {

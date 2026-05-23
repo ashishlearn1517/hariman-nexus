@@ -45,7 +45,10 @@
                         <h3 class="text-base font-semibold text-slate-950">{{ __('Product List') }}</h3>
                         <p class="mt-1 text-sm text-slate-500">{{ __('Showing the latest products first.') }}</p>
                     </div>
-                    <span class="text-sm font-medium text-slate-500">{{ $products->total() }} {{ Str::plural('product', $products->total()) }}</span>
+                    <div class="flex flex-col gap-3 sm:items-end">
+                        <span class="text-sm font-medium text-slate-500">{{ $products->total() }} {{ Str::plural('product', $products->total()) }}</span>
+                        @include('sales.partials.table-search', ['search' => $search, 'placeholder' => __('Search products...')])
+                    </div>
                 </div>
 
                 <div class="overflow-x-auto">

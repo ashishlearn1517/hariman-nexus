@@ -13,11 +13,23 @@ use Illuminate\View\View;
 
 class ClientController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
+        $search = trim((string) $request->query('search', ''));
+
         return view('sales.clients.index', [
             'clients' => Client::query()
                 ->with('project')
+                ->when($search !== '', fn ($query) => $query->where(function ($query) use ($search): void {
+                    $query->where('client_code', 'like', "%{$search}%")
+                        ->orWhere('name', 'like', "%{$search}%")
+                        ->orWhere('client_type', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%")
+                        ->orWhere('phone', 'like', "%{$search}%")
+                        ->orWhere('address', 'like', "%{$search}%")
+                        ->orWhere('status', 'like', "%{$search}%")
+                        ->orWhereHas('project', fn ($projectQuery) => $projectQuery->where('name', 'like', "%{$search}%"));
+                }))
                 ->latest()
                 ->paginate(10)
                 ->withQueryString(),
@@ -27,6 +39,7 @@ class ClientController extends Controller
                 ->get(),
             'types' => Client::typeOptions(),
             'statuses' => Client::statusOptions(),
+            'search' => $search,
         ]);
     }
 

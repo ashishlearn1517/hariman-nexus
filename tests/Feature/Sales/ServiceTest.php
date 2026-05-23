@@ -17,6 +17,29 @@ test('authenticated users can view services page', function () {
     $response->assertOk();
     $response->assertSee('Add Service');
     $response->assertSee('Service List');
+    $response->assertSee('Search services...');
+});
+
+test('authenticated users can search services', function () {
+    $user = User::factory()->create();
+    Service::create([
+        'short_name' => 'SEO',
+        'long_name' => 'Search Engine Optimization Retainer',
+        'default_rate' => 1500,
+        'status' => Service::STATUS_ACTIVE,
+    ]);
+    Service::create([
+        'short_name' => 'AMC',
+        'long_name' => 'Annual Maintenance Contract',
+        'default_rate' => 2500,
+        'status' => Service::STATUS_ACTIVE,
+    ]);
+
+    $response = $this->actingAs($user)->get('/sales/services?search=SEO');
+
+    $response->assertOk();
+    $response->assertSee('Search Engine Optimization Retainer');
+    $response->assertDontSee('Annual Maintenance Contract');
 });
 
 test('service core fields are required', function () {

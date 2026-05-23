@@ -7,16 +7,18 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, HasRoles, Notifiable;
 
-    public const ROLE_ADMIN = 'admin';
-    public const ROLE_MANAGER = 'manager';
-    public const ROLE_ACCOUNTANT = 'accountant';
-    public const ROLE_STAFF = 'staff';
+    public const ROLE_SUPER_ADMIN = 'Super Admin';
+    public const ROLE_ADMIN = 'Admin';
+    public const ROLE_ACCOUNTANT = 'Accountant';
+    public const ROLE_OPERATIONS_STAFF = 'Operations Staff';
+    public const ROLE_VIEWER = 'Viewer';
 
     /**
      * The attributes that are mass assignable.
@@ -27,6 +29,7 @@ class User extends Authenticatable
         'name',
         'email',
         'role',
+        'is_active',
         'password',
     ];
 
@@ -36,10 +39,21 @@ class User extends Authenticatable
     public static function roleOptions(): array
     {
         return [
-            self::ROLE_ADMIN => 'Administrator',
-            self::ROLE_MANAGER => 'Manager',
+            self::ROLE_SUPER_ADMIN => 'Super Admin',
+            self::ROLE_ADMIN => 'Admin',
             self::ROLE_ACCOUNTANT => 'Accountant',
-            self::ROLE_STAFF => 'Staff',
+            self::ROLE_OPERATIONS_STAFF => 'Operations Staff',
+            self::ROLE_VIEWER => 'Viewer',
+        ];
+    }
+
+    public static function legacyRoleMap(): array
+    {
+        return [
+            'admin' => self::ROLE_ADMIN,
+            'manager' => self::ROLE_OPERATIONS_STAFF,
+            'accountant' => self::ROLE_ACCOUNTANT,
+            'staff' => self::ROLE_VIEWER,
         ];
     }
 
@@ -62,6 +76,7 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'is_active' => 'boolean',
             'password' => 'hashed',
         ];
     }

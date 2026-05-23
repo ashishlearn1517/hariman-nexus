@@ -17,6 +17,19 @@ test('authenticated users can view projects page', function () {
     $response->assertOk();
     $response->assertSee('Add Project');
     $response->assertSee('Project List');
+    $response->assertSee('Search projects...');
+});
+
+test('authenticated users can search projects', function () {
+    $user = User::factory()->create();
+    Project::create(['name' => 'ERP Implementation', 'start_date' => '2026-06-01', 'status' => Project::STATUS_ACTIVE]);
+    Project::create(['name' => 'Website Redesign', 'start_date' => '2026-06-05', 'status' => Project::STATUS_ACTIVE]);
+
+    $response = $this->actingAs($user)->get('/sales/projects?search=ERP');
+
+    $response->assertOk();
+    $response->assertSee('ERP Implementation');
+    $response->assertDontSee('Website Redesign');
 });
 
 test('project name and start date are required', function () {

@@ -9,6 +9,7 @@ use App\Models\Currency;
 use App\Models\EmailSetting;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
+use App\Models\InvoicePayment;
 use App\Models\NumberingSetting;
 use App\Models\Product;
 use App\Models\Project;
@@ -16,12 +17,14 @@ use App\Models\Quotation;
 use App\Models\Service;
 use App\Models\TaxSetting;
 use App\Models\TermCondition;
+use App\Support\ActivityLogger;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
@@ -114,6 +117,7 @@ class InvoiceController extends Controller
             ]);
 
             $invoice->items()->createMany($items);
+            ActivityLogger::log('invoices', 'created', auth()->user()->name.' created Invoice '.$invoice->invoice_no.'.');
 
             if (! empty($validated['source_quotation_id'])) {
                 Quotation::query()
@@ -123,6 +127,7 @@ class InvoiceController extends Controller
                         'status' => Quotation::STATUS_CONVERTED,
                         'converted_at' => now(),
                     ]);
+                ActivityLogger::log('quotations', 'converted', auth()->user()->name.' converted Quotation ID '.$validated['source_quotation_id'].' to Invoice '.$invoice->invoice_no.'.');
             }
 
             $numbering->update([
@@ -154,6 +159,7 @@ class InvoiceController extends Controller
     public function update(Request $request, Invoice $invoice): RedirectResponse
     {
         $validated = $this->validatedInvoice($request);
+        $invoiceNo = $invoice->invoice_no;
 
         DB::transaction(function () use ($invoice, $validated): void {
             $items = $this->buildItems($validated);
@@ -182,6 +188,7 @@ class InvoiceController extends Controller
             $invoice->items()->delete();
             $invoice->items()->createMany($items);
         });
+        ActivityLogger::log('invoices', 'updated', $request->user()->name.' edited Invoice '.$invoiceNo.'.');
 
         return redirect()
             ->route('transactions.invoices.index')
@@ -228,6 +235,7 @@ class InvoiceController extends Controller
 
             return $copy;
         });
+        ActivityLogger::log('invoices', 'duplicated', auth()->user()->name.' duplicated Invoice '.$invoice->invoice_no.' as '.$newInvoice->invoice_no.'.');
 
         return redirect()
             ->route('transactions.invoices.edit', $newInvoice)
@@ -236,18 +244,22 @@ class InvoiceController extends Controller
 
     public function destroy(Invoice $invoice): RedirectResponse
     {
-        $sourceQuotationId = $invoice->source_quotation_id;
-        $invoice->delete();
+        DB::transaction(function () use ($invoice): void {
+            $sourceQuotationId = $invoice->source_quotation_id;
+            $invoiceNo = $invoice->invoice_no;
+            $invoice->delete();
+            ActivityLogger::log('invoices', 'archived', auth()->user()->name.' archived Invoice '.$invoiceNo.'.');
 
-        if ($sourceQuotationId) {
-            Quotation::query()
-                ->whereKey($sourceQuotationId)
-                ->whereDoesntHave('invoices')
-                ->update([
-                    'status' => Quotation::STATUS_APPROVED,
-                    'converted_at' => null,
-                ]);
-        }
+            if ($sourceQuotationId) {
+                Quotation::query()
+                    ->whereKey($sourceQuotationId)
+                    ->whereDoesntHave('invoices')
+                    ->update([
+                        'status' => Quotation::STATUS_APPROVED,
+                        'converted_at' => null,
+                    ]);
+            }
+        });
 
         return redirect()
             ->route('transactions.invoices.index')
@@ -267,49 +279,131 @@ class InvoiceController extends Controller
     public function send(Invoice $invoice): RedirectResponse
     {
         $invoice = $this->loadInvoice($invoice);
-        $emailSetting = EmailSetting::current();
-
-        if (! $invoice->client?->email || ! $emailSetting->mail_host || ! $emailSetting->mail_from_address) {
+        if (! $this->sendInvoiceEmail($invoice, 'invoice')) {
             return redirect()
                 ->route('transactions.invoices.index')
                 ->with('status', 'invoice-email-not-configured');
         }
 
-        $this->applyMailSettings($emailSetting);
-        $subject = $this->replaceEmailPlaceholders($emailSetting->invoice_email_subject, $invoice);
-        $body = $this->replaceEmailPlaceholders($emailSetting->invoice_email_body, $invoice);
-        $pdfData = Pdf::loadView('transactions.invoices.pdf', [
-            'invoice' => $invoice,
-            'company' => CompanySetting::current(),
-        ])->setPaper('a4')->output();
-
-        Mail::raw($body, function ($message) use ($invoice, $emailSetting, $subject, $pdfData): void {
-            $message->to($invoice->client->email)
-                ->from($emailSetting->mail_from_address, $emailSetting->mail_from_name)
-                ->subject($subject)
-                ->attachData($pdfData, $invoice->invoice_no.'.pdf', ['mime' => 'application/pdf']);
-
-            if ($emailSetting->mail_cc_address) {
-                $message->cc($emailSetting->mail_cc_address);
-            }
-        });
-
         $invoice->update([
             'status' => Invoice::STATUS_SENT,
             'sent_at' => now(),
         ]);
+        ActivityLogger::log('invoices', 'sent', auth()->user()->name.' sent Invoice '.$invoice->invoice_no.'.');
 
         return redirect()
             ->route('transactions.invoices.index')
             ->with('status', 'invoice-sent');
     }
 
+    public function sendReminder(Invoice $invoice): RedirectResponse
+    {
+        $invoice = $this->loadInvoice($invoice);
+
+        if (! $this->canSendReminder($invoice)) {
+            return redirect()
+                ->route('transactions.invoices.index')
+                ->with('status', 'invoice-reminder-not-ready');
+        }
+
+        if (! $this->sendInvoiceEmail($invoice, 'reminder')) {
+            return redirect()
+                ->route('transactions.invoices.index')
+                ->with('status', 'invoice-email-not-configured');
+        }
+        ActivityLogger::log('invoices', 'reminder_sent', auth()->user()->name.' sent reminder for Invoice '.$invoice->invoice_no.'.');
+
+        return redirect()
+            ->route('transactions.invoices.index')
+            ->with('status', 'invoice-reminder-sent');
+    }
+
+    public function sendOverdue(Invoice $invoice): RedirectResponse
+    {
+        $invoice = $this->loadInvoice($invoice);
+        $this->syncPaymentStatus($invoice);
+        $invoice->refresh();
+
+        if (! $this->canSendOverdue($invoice)) {
+            return redirect()
+                ->route('transactions.invoices.index')
+                ->with('status', 'invoice-overdue-not-ready');
+        }
+
+        if (! $this->sendInvoiceEmail($invoice, 'overdue')) {
+            return redirect()
+                ->route('transactions.invoices.index')
+                ->with('status', 'invoice-email-not-configured');
+        }
+        ActivityLogger::log('invoices', 'overdue_sent', auth()->user()->name.' sent overdue email for Invoice '.$invoice->invoice_no.'.');
+
+        return redirect()
+            ->route('transactions.invoices.index')
+            ->with('status', 'invoice-overdue-sent');
+    }
+
     public function paymentStatus(Invoice $invoice): View
     {
+        $this->syncPaymentStatus($invoice);
+
         return view('transactions.invoices.payment-status', [
-            'invoice' => $this->loadInvoice($invoice),
+            'invoice' => $this->loadInvoice($invoice)->load(['payments' => fn ($query) => $query->latest('payment_date')->latest()]),
             'statuses' => Invoice::statusOptions(),
+            'paymentMethods' => InvoicePayment::methodOptions(),
         ]);
+    }
+
+    public function storePayment(Request $request, Invoice $invoice): RedirectResponse
+    {
+        $validated = $request->validate([
+            'payment_date' => ['required', 'date'],
+            'amount' => ['required', 'numeric', 'gt:0'],
+            'payment_method' => ['required', Rule::in(array_keys(InvoicePayment::methodOptions()))],
+            'receipt_number' => ['nullable', 'string', 'max:120'],
+            'reference' => ['nullable', 'string', 'max:180'],
+            'notes' => ['nullable', 'string', 'max:2000'],
+            'receipt_file' => ['nullable', 'file', 'mimes:pdf,png,jpg,jpeg,webp', 'max:4096'],
+        ]);
+
+        DB::transaction(function () use ($request, $invoice, $validated): void {
+            $paymentData = [
+                'payment_date' => $validated['payment_date'],
+                'amount' => $validated['amount'],
+                'payment_method' => $validated['payment_method'],
+                'receipt_number' => $validated['receipt_number'] ?? null,
+                'reference' => $validated['reference'] ?? null,
+                'notes' => $validated['notes'] ?? null,
+            ];
+
+            if ($request->hasFile('receipt_file')) {
+                $paymentData = array_merge($paymentData, $this->storeReceipt($request, $invoice));
+            }
+
+            $payment = $invoice->payments()->create($paymentData);
+            $this->syncPaymentStatus($invoice->refresh());
+            ActivityLogger::log('payments', 'created', auth()->user()->name.' added Payment '.$payment->id.' for Invoice '.$invoice->invoice_no.'.');
+        });
+
+        return redirect()
+            ->route('transactions.invoices.payment-status', $invoice)
+            ->with('status', 'payment-added');
+    }
+
+    public function destroyPayment(Invoice $invoice, InvoicePayment $payment): RedirectResponse
+    {
+        abort_if($payment->invoice_id !== $invoice->id, 404);
+        $paymentId = $payment->id;
+        $invoiceNo = $invoice->invoice_no;
+
+        DB::transaction(function () use ($invoice, $payment, $paymentId, $invoiceNo): void {
+            $payment->delete();
+            $this->syncPaymentStatus($invoice->refresh());
+            ActivityLogger::log('payments', 'archived', auth()->user()->name.' archived Payment '.$paymentId.' from Invoice '.$invoiceNo.'.');
+        });
+
+        return redirect()
+            ->route('transactions.invoices.payment-status', $invoice)
+            ->with('status', 'payment-deleted');
     }
 
     /**
@@ -368,6 +462,55 @@ class InvoiceController extends Controller
     }
 
     /**
+     * @return array<string, string>
+     */
+    private function storeReceipt(Request $request, Invoice $invoice): array
+    {
+        $file = $request->file('receipt_file');
+        $filename = 'receipt-'.now()->format('YmdHis').'-'.uniqid().'.'.$file->extension();
+        $path = $file->storeAs('receipts/'.$invoice->id, $filename, 'public');
+
+        return [
+            'receipt_path' => $path,
+            'receipt_web_path' => 'storage/'.$path,
+        ];
+    }
+
+    private function syncPaymentStatus(Invoice $invoice): void
+    {
+        if ($invoice->status === Invoice::STATUS_CANCELLED) {
+            return;
+        }
+
+        $amountPaid = min((float) $invoice->payments()->sum('amount'), (float) $invoice->total);
+        $balanceDue = max((float) $invoice->total - $amountPaid, 0);
+        $status = $invoice->status;
+
+        if ($balanceDue <= 0 && (float) $invoice->total > 0) {
+            $status = Invoice::STATUS_PAID;
+        } elseif ($amountPaid > 0) {
+            $status = Invoice::STATUS_PARTIALLY_PAID;
+        } elseif ($invoice->due_date && $invoice->due_date->isPast()) {
+            $status = Invoice::STATUS_OVERDUE;
+        } elseif (! in_array($status, [Invoice::STATUS_DRAFT, Invoice::STATUS_SENT], true)) {
+            $status = Invoice::STATUS_DRAFT;
+        }
+
+        $oldStatus = $invoice->status;
+
+        $invoice->update([
+            'amount_paid' => $amountPaid,
+            'balance_due' => $balanceDue,
+            'status' => $status,
+            'paid_at' => $status === Invoice::STATUS_PAID ? ($invoice->paid_at ?? now()) : null,
+        ]);
+
+        if ($oldStatus !== $status) {
+            ActivityLogger::log('invoices', 'status_changed', 'Invoice '.$invoice->invoice_no.' status changed from '.$oldStatus.' to '.$status.'.');
+        }
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function invoiceFormData(): array
@@ -419,6 +562,54 @@ class InvoiceController extends Controller
         Config::set('mail.mailers.smtp.password', $emailSetting->mail_password);
         Config::set('mail.from.address', $emailSetting->mail_from_address);
         Config::set('mail.from.name', $emailSetting->mail_from_name);
+    }
+
+    private function sendInvoiceEmail(Invoice $invoice, string $template): bool
+    {
+        $emailSetting = EmailSetting::current();
+
+        if (! $invoice->client?->email || ! $emailSetting->mail_host || ! $emailSetting->mail_from_address) {
+            return false;
+        }
+
+        $subjectField = $template.'_email_subject';
+        $bodyField = $template.'_email_body';
+        $this->applyMailSettings($emailSetting);
+        $subject = $this->replaceEmailPlaceholders($emailSetting->{$subjectField}, $invoice);
+        $body = $this->replaceEmailPlaceholders($emailSetting->{$bodyField}, $invoice);
+        $pdfData = Pdf::loadView('transactions.invoices.pdf', [
+            'invoice' => $invoice,
+            'company' => CompanySetting::current(),
+        ])->setPaper('a4')->output();
+
+        Mail::raw($body, function ($message) use ($invoice, $emailSetting, $subject, $pdfData): void {
+            $message->to($invoice->client->email)
+                ->from($emailSetting->mail_from_address, $emailSetting->mail_from_name)
+                ->subject($subject)
+                ->attachData($pdfData, $invoice->invoice_no.'.pdf', ['mime' => 'application/pdf']);
+
+            if ($emailSetting->mail_cc_address) {
+                $message->cc($emailSetting->mail_cc_address);
+            }
+        });
+
+        return true;
+    }
+
+    private function canSendReminder(Invoice $invoice): bool
+    {
+        return $invoice->due_date
+            && (float) $invoice->balance_due > 0
+            && ! in_array($invoice->status, [Invoice::STATUS_PAID, Invoice::STATUS_CANCELLED], true)
+            && $invoice->due_date->isTomorrow();
+    }
+
+    private function canSendOverdue(Invoice $invoice): bool
+    {
+        return $invoice->due_date
+            && (float) $invoice->balance_due > 0
+            && ! in_array($invoice->status, [Invoice::STATUS_PAID, Invoice::STATUS_CANCELLED], true)
+            && now()->startOfDay()->gt($invoice->due_date->copy()->startOfDay());
     }
 
     private function replaceEmailPlaceholders(string $text, Invoice $invoice): string

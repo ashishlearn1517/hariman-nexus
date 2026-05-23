@@ -11,14 +11,22 @@ use Illuminate\View\View;
 
 class TermConditionController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
+        $search = trim((string) $request->query('search', ''));
+
         return view('sales.terms.index', [
             'terms' => TermCondition::query()
+                ->when($search !== '', fn ($query) => $query->where(function ($query) use ($search): void {
+                    $query->where('name', 'like', "%{$search}%")
+                        ->orWhere('content', 'like', "%{$search}%")
+                        ->orWhere('status', 'like', "%{$search}%");
+                }))
                 ->latest()
                 ->paginate(10)
                 ->withQueryString(),
             'statuses' => TermCondition::statusOptions(),
+            'search' => $search,
         ]);
     }
 

@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\CompanySetting;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -28,6 +28,7 @@ class CompanySetupController extends Controller
             'company_phone_country' => ['nullable', 'string', Rule::in(array_keys(CompanySetting::countryOptions()))],
             'company_phone_local' => ['nullable', 'digits_between:6,15'],
             'company_location_country' => ['nullable', 'string', Rule::in(array_keys(CompanySetting::countryOptions()))],
+            'company_address' => ['nullable', 'string', 'max:3000'],
             'website' => ['nullable', 'url', 'max:255'],
             'tax_registration_number' => ['nullable', 'string', 'max:255'],
             'payment_label' => ['nullable', 'string', 'max:255'],
@@ -52,6 +53,7 @@ class CompanySetupController extends Controller
             'company_phone_local' => $validated['company_phone_local'] ?? null,
             'company_location_country' => $locationCountry,
             'company_location' => $locationCountry ? $countries[$locationCountry]['label'] : null,
+            'company_address' => $validated['company_address'] ?? null,
             'website' => $validated['website'] ?? null,
             'tax_registration_number' => $validated['tax_registration_number'] ?? null,
             'payment_label' => $validated['payment_label'] ?? null,
@@ -79,23 +81,26 @@ class CompanySetupController extends Controller
      */
     private function storeUpload(Request $request, string $field, string $baseName): array
     {
-        $uploadDirectory = public_path('uploads/settings');
-        File::ensureDirectoryExists($uploadDirectory);
-
-        foreach (glob($uploadDirectory.DIRECTORY_SEPARATOR.$baseName.'.*') ?: [] as $existingFile) {
-            File::delete($existingFile);
-        }
+        $disk = Storage::disk('public');
+        $directory = 'settings';
 
         $file = $request->file($field);
         $extension = $file->extension();
         $filename = $baseName.'.'.$extension;
-        $file->move($uploadDirectory, $filename);
+
+        foreach ($disk->files($directory) as $existingFile) {
+            if (str_starts_with(pathinfo($existingFile, PATHINFO_FILENAME), $baseName)) {
+                $disk->delete($existingFile);
+            }
+        }
+
+        $path = $file->storeAs($directory, $filename, 'public');
 
         $prefix = $field === 'company_logo' ? 'company_logo' : 'payment_qr';
 
         return [
-            $prefix.'_path' => $uploadDirectory.DIRECTORY_SEPARATOR.$filename,
-            $prefix.'_web_path' => 'uploads/settings/'.$filename,
+            $prefix.'_path' => $path,
+            $prefix.'_web_path' => 'storage/'.$path,
         ];
     }
 }

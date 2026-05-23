@@ -137,18 +137,28 @@
                                     <template x-for="(row, index) in rows" :key="row.key">
                                         <tr>
                                             <td class="px-4 py-3">
-                                                <select name="item_type[]" x-model="row.type" x-on:change="row.itemId = ''; row.rate = 0" class="w-32 rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                                <select name="item_type[]" x-model="row.type" x-on:change="row.itemId = ''; row.itemSearch = ''; row.rate = 0" class="w-32 rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                                                     <option value="service">{{ __('Service') }}</option>
                                                     <option value="product">{{ __('Product') }}</option>
                                                 </select>
                                             </td>
-                                            <td class="min-w-64 px-4 py-3">
-                                                <select name="item_source_id[]" x-model="row.itemId" x-on:change="syncRate(row)" class="w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
-                                                    <option value="">{{ __('Select item') }}</option>
+                                            <td class="min-w-72 px-4 py-3">
+                                                <input type="hidden" name="item_source_id[]" x-model="row.itemId">
+                                                <input
+                                                    type="search"
+                                                    x-model="row.itemSearch"
+                                                    x-on:input="syncItemFromSearch(row)"
+                                                    x-on:change="syncItemFromSearch(row)"
+                                                    :list="`quotation-item-options-${row.key}`"
+                                                    placeholder="{{ __('Search item...') }}"
+                                                    class="w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                                    required
+                                                >
+                                                <datalist :id="`quotation-item-options-${row.key}`">
                                                     <template x-for="item in optionsFor(row.type)" :key="`${row.type}-${item.id}`">
-                                                        <option :value="item.id" x-text="item.label"></option>
+                                                        <option :value="item.label"></option>
                                                     </template>
-                                                </select>
+                                                </datalist>
                                             </td>
                                             <td class="px-4 py-3"><input name="quantity[]" type="number" min="0.01" step="0.01" x-model.number="row.quantity" class="w-24 rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required></td>
                                             <td class="px-4 py-3"><input name="rate[]" type="number" min="0" step="0.01" x-model.number="row.rate" class="w-32 rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required></td>
@@ -229,14 +239,21 @@
                                     <td class="min-w-[430px] px-5 py-4">
                                         <div class="flex flex-wrap gap-2">
                                             <a href="{{ route('transactions.quotations.show', $quotation) }}" class="rounded-md bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-800 hover:bg-indigo-100">{{ __('View') }}</a>
-                                            <a href="{{ route('transactions.quotations.status', $quotation) }}" class="rounded-md bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-800 hover:bg-indigo-100">{{ __('Status') }}</a>
+                                            @can('view quotations')
+                                                <a href="{{ route('transactions.quotations.status', $quotation) }}" class="rounded-md bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-800 hover:bg-indigo-100">{{ __('Status') }}</a>
+                                            @endcan
+                                            @can('edit quotations')
                                             @if ($quotation->status === \App\Models\Quotation::STATUS_DRAFT)
                                                 <a href="{{ route('transactions.quotations.edit', $quotation) }}" class="rounded-md bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-800 hover:bg-indigo-100">{{ __('Edit') }}</a>
                                             @endif
+                                            @endcan
+                                            @can('create quotations')
                                             <form method="POST" action="{{ route('transactions.quotations.duplicate', $quotation) }}">
                                                 @csrf
                                                 <button type="submit" class="rounded-md bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-800 hover:bg-indigo-100">{{ __('Duplicate') }}</button>
                                             </form>
+                                            @endcan
+                                            @can('delete quotations')
                                             @if (in_array($quotation->status, [\App\Models\Quotation::STATUS_DRAFT, \App\Models\Quotation::STATUS_REJECTED, \App\Models\Quotation::STATUS_EXPIRED, \App\Models\Quotation::STATUS_APPROVED], true))
                                                 <form method="POST" action="{{ route('transactions.quotations.destroy', $quotation) }}" onsubmit="return confirm('Delete this quotation completely?');">
                                                     @csrf
@@ -246,16 +263,21 @@
                                             @elseif ($quotation->status === \App\Models\Quotation::STATUS_CONVERTED)
                                                 <button type="button" onclick="alert('Converted to invoice. Delete the connected invoice first, then delete this quotation.')" class="rounded-md bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-500">{{ __('Delete') }}</button>
                                             @endif
+                                            @endcan
                                             <a href="{{ route('transactions.quotations.pdf', $quotation) }}" class="rounded-md bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-800 hover:bg-indigo-100">{{ __('PDF') }}</a>
+                                            @can('send quotations')
                                             @if (in_array($quotation->status, [\App\Models\Quotation::STATUS_DRAFT, \App\Models\Quotation::STATUS_SENT, \App\Models\Quotation::STATUS_EXPIRED], true))
                                                 <form method="POST" action="{{ route('transactions.quotations.send', $quotation) }}">
                                                     @csrf
                                                     <button type="submit" class="rounded-md bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-800 hover:bg-indigo-100">{{ $quotation->status === \App\Models\Quotation::STATUS_DRAFT ? __('Send') : __('Email') }}</button>
                                                 </form>
                                             @endif
+                                            @endcan
+                                            @can('create invoices')
                                             @if ($quotation->status === \App\Models\Quotation::STATUS_APPROVED)
                                                 <button type="button" class="rounded-md bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100">{{ __('Convert') }}</button>
                                             @endif
+                                            @endcan
                                         </div>
                                     </td>
                                 </tr>
@@ -278,7 +300,7 @@
     <script>
         function quotationBuilder() {
             return {
-                rows: [{ key: Date.now(), type: 'service', itemId: '', quantity: 1, rate: 0 }],
+                rows: [{ key: Date.now(), type: 'service', itemId: '', itemSearch: '', quantity: 1, rate: 0 }],
                 taxRate: Number(document.getElementById('tax_setting_id')?.selectedOptions[0]?.dataset.rate || 0),
                 serviceOptions: @js($services->map(fn ($service) => ['id' => $service->id, 'label' => $service->short_name.' - '.$service->long_name, 'rate' => (float) $service->default_rate])->values()),
                 productOptions: @js($products->map(fn ($product) => ['id' => $product->id, 'label' => $product->product_code.' - '.$product->name, 'rate' => (float) $product->unit_price])->values()),
@@ -292,7 +314,7 @@
                     return this.subtotal + this.taxAmount;
                 },
                 addRow(type) {
-                    this.rows.push({ key: Date.now() + Math.random(), type, itemId: '', quantity: 1, rate: 0 });
+                    this.rows.push({ key: Date.now() + Math.random(), type, itemId: '', itemSearch: '', quantity: 1, rate: 0 });
                 },
                 removeRow(index) {
                     if (this.rows.length > 1) {
@@ -304,6 +326,12 @@
                 },
                 syncRate(row) {
                     const option = this.optionsFor(row.type).find((item) => String(item.id) === String(row.itemId));
+                    row.rate = option ? option.rate : 0;
+                    row.itemSearch = option ? option.label : '';
+                },
+                syncItemFromSearch(row) {
+                    const option = this.optionsFor(row.type).find((item) => item.label.toLowerCase() === String(row.itemSearch || '').toLowerCase());
+                    row.itemId = option ? String(option.id) : '';
                     row.rate = option ? option.rate : 0;
                 },
                 money(value) {
