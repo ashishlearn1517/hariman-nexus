@@ -22,7 +22,7 @@
         'invoice-overdue-sent' => ['success', 'Overdue email sent successfully.'],
         'invoice-reminder-not-ready' => ['warning', 'Reminder is available only 24 hours before due date.'],
         'invoice-overdue-not-ready' => ['warning', 'Overdue email is available only after the due date has passed.'],
-        'invoice-email-not-configured' => ['warning', 'Email settings or client email are missing.'],
+        'invoice-email-not-configured' => ['warning', 'Email settings or client email are missing. Please update Email Settings and Client details first.'],
         'payment-added' => ['success', 'Payment entry added successfully.'],
         'payment-deleted' => ['warning', 'Payment entry archived and invoice balance recalculated.'],
         'expense-category-created' => ['success', 'Expense category created successfully.'],
@@ -52,9 +52,7 @@
     ];
 
     $flash = $status && isset($messages[$status]) ? $messages[$status] : null;
-    $overdueCount = 0;
-    $dueSoonCount = 0;
-    $expiringQuoteCount = 0;
+    $alerts = collect();
 
     if (auth()->check()) {
         if (auth()->user()->can('view invoices')) {
@@ -64,11 +62,29 @@
                 ->whereDate('due_date', '<', now()->startOfDay())
                 ->count();
 
+            if ($overdueCount) {
+                $alerts->push([
+                    'type' => 'danger',
+                    'title' => __('Overdue invoices'),
+                    'message' => $overdueCount.' '.__('overdue invoice(s) need attention.'),
+                    'href' => route('transactions.invoices.index', ['status' => \App\Models\Invoice::STATUS_OVERDUE]),
+                ]);
+            }
+
             $dueSoonCount = \App\Models\Invoice::query()
                 ->whereNot('status', \App\Models\Invoice::STATUS_CANCELLED)
                 ->where('balance_due', '>', 0)
                 ->whereBetween('due_date', [now()->startOfDay(), now()->addDays(7)->endOfDay()])
                 ->count();
+
+            if ($dueSoonCount) {
+                $alerts->push([
+                    'type' => 'warning',
+                    'title' => __('Due soon'),
+                    'message' => $dueSoonCount.' '.__('invoice(s) are due within 7 days.'),
+                    'href' => route('transactions.invoices.index'),
+                ]);
+            }
         }
 
         if (auth()->user()->can('view quotations')) {
@@ -76,45 +92,71 @@
                 ->whereNotIn('status', [\App\Models\Quotation::STATUS_CONVERTED, \App\Models\Quotation::STATUS_REJECTED])
                 ->whereBetween('validity_date', [now()->startOfDay(), now()->addDays(7)->endOfDay()])
                 ->count();
+
+            if ($expiringQuoteCount) {
+                $alerts->push([
+                    'type' => 'info',
+                    'title' => __('Expiring quotations'),
+                    'message' => $expiringQuoteCount.' '.__('quotation(s) are expiring soon.'),
+                    'href' => route('transactions.quotations.index'),
+                ]);
+            }
         }
     }
+
+    $notificationCount = $alerts->count() + ($flash ? 1 : 0);
 @endphp
 
-@if ($flash || $overdueCount || $dueSoonCount || $expiringQuoteCount)
-    <div class="mx-auto max-w-7xl space-y-3 px-4 pt-4 sm:px-6 lg:px-8">
-        <section class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm" aria-label="{{ __('Notification Center') }}">
-            <div class="flex flex-col gap-2 border-b border-slate-100 pb-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                    <p class="text-xs font-semibold uppercase tracking-wide text-cyan-700">{{ __('Notification Center') }}</p>
-                    <h2 class="text-base font-semibold text-slate-950">{{ __('Alerts, reminders, and system updates') }}</h2>
-                </div>
-                <span class="rounded-md bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
-                    {{ collect([$flash, $overdueCount, $dueSoonCount, $expiringQuoteCount])->filter()->count() }} {{ __('active') }}
+<x-dropdown align="right" width="96" contentClasses="bg-white">
+    <x-slot name="trigger">
+        <button type="button" class="relative inline-flex h-10 w-10 items-center justify-center rounded-md border border-transparent text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2" aria-label="{{ __('Open notifications') }}">
+            <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.85 23.85 0 005.454-1.31A8.967 8.967 0 0118 9.75V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022 23.85 23.85 0 005.455 1.31m5.714 0a3 3 0 11-5.714 0" />
+            </svg>
+
+            @if ($notificationCount)
+                <span class="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-600 px-1 text-[11px] font-bold text-white">
+                    {{ $notificationCount > 9 ? '9+' : $notificationCount }}
                 </span>
+            @endif
+        </button>
+    </x-slot>
+
+    <x-slot name="content">
+        <div class="w-96 max-w-[calc(100vw-2rem)]">
+            <div class="border-b border-slate-100 px-4 py-3">
+                <p class="text-xs font-semibold uppercase tracking-wide text-cyan-700">{{ __('Notifications') }}</p>
+                <h2 class="text-sm font-semibold text-slate-950">{{ __('Alerts, reminders, and updates') }}</h2>
             </div>
 
-            <div class="mt-3 grid gap-3 md:grid-cols-3">
+            <div class="max-h-96 overflow-y-auto p-2">
                 @if ($flash)
-                    <div class="rounded-md border p-4 text-sm font-medium {{ $flash[0] === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-700' }}">
-                        {{ __($flash[1]) }}
+                    <div class="mb-2 rounded-md border p-3 text-sm {{ $flash[0] === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-amber-200 bg-amber-50 text-amber-800' }}">
+                        <p class="font-semibold">{{ $flash[0] === 'success' ? __('Success') : __('Warning') }}</p>
+                        <p class="mt-1 text-xs leading-5">{{ __($flash[1]) }}</p>
                     </div>
                 @endif
-                @if ($overdueCount)
-                    <a href="{{ route('transactions.invoices.index', ['status' => \App\Models\Invoice::STATUS_OVERDUE]) }}" class="rounded-md border border-rose-200 bg-rose-50 p-4 text-sm font-medium text-rose-700 hover:bg-rose-100">
-                        {{ $overdueCount }} {{ __('overdue invoice(s) need attention.') }}
+
+                @forelse ($alerts as $alert)
+                    @php
+                        $classes = [
+                            'danger' => 'border-rose-200 bg-rose-50 text-rose-800 hover:bg-rose-100',
+                            'warning' => 'border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100',
+                            'info' => 'border-blue-200 bg-blue-50 text-blue-800 hover:bg-blue-100',
+                        ][$alert['type']];
+                    @endphp
+                    <a href="{{ $alert['href'] }}" class="mb-2 block rounded-md border p-3 text-sm transition {{ $classes }}">
+                        <span class="font-semibold">{{ $alert['title'] }}</span>
+                        <span class="mt-1 block text-xs leading-5">{{ $alert['message'] }}</span>
                     </a>
-                @endif
-                @if ($dueSoonCount)
-                    <a href="{{ route('transactions.invoices.index') }}" class="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-700 hover:bg-amber-100">
-                        {{ $dueSoonCount }} {{ __('invoice(s) are due within 7 days.') }}
-                    </a>
-                @endif
-                @if ($expiringQuoteCount)
-                    <a href="{{ route('transactions.quotations.index') }}" class="rounded-md border border-blue-200 bg-blue-50 p-4 text-sm font-medium text-blue-700 hover:bg-blue-100">
-                        {{ $expiringQuoteCount }} {{ __('quotation(s) are expiring soon.') }}
-                    </a>
-                @endif
+                @empty
+                    @unless ($flash)
+                        <div class="px-4 py-8 text-center text-sm text-slate-500">
+                            {{ __('No alerts right now.') }}
+                        </div>
+                    @endunless
+                @endforelse
             </div>
-        </section>
-    </div>
-@endif
+        </div>
+    </x-slot>
+</x-dropdown>

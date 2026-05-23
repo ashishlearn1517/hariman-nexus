@@ -4,7 +4,7 @@
             <div>
                 <p class="text-sm font-medium text-cyan-700">{{ __('Hariman Nexus') }}</p>
                 <h2 class="text-2xl font-semibold text-slate-950">{{ __('Reports') }}</h2>
-                <p class="mt-1 text-sm text-slate-500">{{ __('Revenue, outstanding balances, client statements, collections, and quotation conversion in one place.') }}</p>
+                <p class="mt-1 text-sm text-slate-500">{{ __('Revenue, outstanding balances, expenses, client statements, collections, and quotation conversion in one place.') }}</p>
             </div>
             <div class="flex flex-wrap gap-2">
                 <button type="button" onclick="window.print()" class="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">{{ __('Print') }}</button>
@@ -59,7 +59,7 @@
                 </form>
             </section>
 
-            <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+            <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
                 <div class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
                     <p class="text-xs font-semibold uppercase tracking-widest text-slate-500">{{ __('Revenue') }}</p>
                     <p class="mt-3 text-3xl font-semibold text-slate-950">{{ $money($revenue['total_invoiced']) }}</p>
@@ -84,6 +84,90 @@
                     <p class="text-xs font-semibold uppercase tracking-widest text-slate-500">{{ __('Conversion') }}</p>
                     <p class="mt-3 text-3xl font-semibold text-indigo-700">{{ $conversion['conversion_rate'] }}%</p>
                     <p class="mt-2 text-sm text-slate-500">{{ $conversion['converted_count'] }} / {{ $conversion['quotation_count'] }} {{ __('quotes') }}</p>
+                </div>
+                <div class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                    <p class="text-xs font-semibold uppercase tracking-widest text-slate-500">{{ __('Expenses') }}</p>
+                    <p class="mt-3 text-3xl font-semibold text-orange-700">{{ $money($expenses['total']) }}</p>
+                    <p class="mt-2 text-sm text-slate-500">{{ $expenses['count'] }} {{ __('expense records') }}</p>
+                </div>
+            </section>
+
+            <section class="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
+                <div class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-xl font-semibold text-slate-950">{{ __('Profit & Loss Report') }}</h3>
+                            <p class="mt-1 text-sm text-slate-500">{{ __('Revenue from payments minus expenses.') }}</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <a href="{{ route('reports.index', array_merge($filterQuery, ['export' => 'profit_loss'])) }}" class="rounded-md bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-800 hover:bg-indigo-100">{{ __('CSV') }}</a>
+                            <a href="{{ route('reports.index', array_merge($filterQuery, ['export' => 'profit_loss_xlsx'])) }}" class="rounded-md bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-100">{{ __('Excel') }}</a>
+                        </div>
+                    </div>
+                    <div class="mt-5 grid gap-4 sm:grid-cols-3">
+                        <div class="rounded-md bg-emerald-50 p-4"><p class="text-xs uppercase tracking-widest text-emerald-700">{{ __('Revenue') }}</p><p class="mt-2 text-xl font-semibold">{{ $money($profitLoss['revenue']) }}</p></div>
+                        <div class="rounded-md bg-orange-50 p-4"><p class="text-xs uppercase tracking-widest text-orange-700">{{ __('Expenses') }}</p><p class="mt-2 text-xl font-semibold">{{ $money($profitLoss['expenses']) }}</p></div>
+                        <div class="rounded-md {{ $profitLoss['profit'] >= 0 ? 'bg-blue-50' : 'bg-rose-50' }} p-4"><p class="text-xs uppercase tracking-widest {{ $profitLoss['profit'] >= 0 ? 'text-blue-700' : 'text-rose-700' }}">{{ __('Profit') }}</p><p class="mt-2 text-xl font-semibold">{{ $money($profitLoss['profit']) }}</p></div>
+                    </div>
+                    <div class="mt-5 h-64"><canvas id="profitLossChart"></canvas></div>
+                </div>
+
+                <div class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-xl font-semibold text-slate-950">{{ __('Project Profitability') }}</h3>
+                            <p class="mt-1 text-sm text-slate-500">{{ __('Project revenue from invoices compared with project expenses.') }}</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <a href="{{ route('reports.index', array_merge($filterQuery, ['export' => 'project_profitability'])) }}" class="rounded-md bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-800 hover:bg-indigo-100">{{ __('CSV') }}</a>
+                            <a href="{{ route('reports.index', array_merge($filterQuery, ['export' => 'project_profitability_xlsx'])) }}" class="rounded-md bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-100">{{ __('Excel') }}</a>
+                        </div>
+                    </div>
+                    <div class="mt-5 overflow-x-auto">
+                        <table class="min-w-full divide-y divide-slate-200 text-sm">
+                            <thead class="bg-slate-50"><tr><th class="px-4 py-3 text-left">{{ __('Project') }}</th><th class="px-4 py-3 text-right">{{ __('Revenue') }}</th><th class="px-4 py-3 text-right">{{ __('Expense') }}</th><th class="px-4 py-3 text-right">{{ __('Profit') }}</th></tr></thead>
+                            <tbody class="divide-y divide-slate-200">
+                                @forelse ($projectProfitability['rows']->take(8) as $row)
+                                    <tr><td class="px-4 py-3 font-semibold">{{ $row['project'] }}</td><td class="px-4 py-3 text-right">{{ $money($row['revenue']) }}</td><td class="px-4 py-3 text-right">{{ $money($row['expenses']) }}</td><td class="px-4 py-3 text-right font-semibold {{ $row['profit'] >= 0 ? 'text-emerald-700' : 'text-rose-700' }}">{{ $money($row['profit']) }}</td></tr>
+                                @empty
+                                    <tr><td colspan="4" class="px-4 py-8 text-center text-slate-500">{{ __('No project profitability data found.') }}</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section class="grid gap-6 xl:grid-cols-2">
+                <div class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-xl font-semibold text-slate-950">{{ __('Monthly Expense Summary') }}</h3>
+                            <p class="mt-1 text-sm text-slate-500">{{ __('Outgoing transactions grouped by month.') }}</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <a href="{{ route('reports.index', array_merge($filterQuery, ['export' => 'expenses'])) }}" class="rounded-md bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-800 hover:bg-indigo-100">{{ __('CSV') }}</a>
+                            <a href="{{ route('reports.index', array_merge($filterQuery, ['export' => 'expenses_xlsx'])) }}" class="rounded-md bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-100">{{ __('Excel') }}</a>
+                        </div>
+                    </div>
+                    <div class="mt-5 h-72"><canvas id="expenseTrendChart"></canvas></div>
+                </div>
+
+                <div class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                    <h3 class="text-xl font-semibold text-slate-950">{{ __('Expense By Category') }}</h3>
+                    <div class="mt-5 h-72"><canvas id="expenseCategoryChart"></canvas></div>
+                    <div class="mt-5 overflow-x-auto">
+                        <table class="min-w-full divide-y divide-slate-200 text-sm">
+                            <thead class="bg-slate-50"><tr><th class="px-4 py-3 text-left">{{ __('Category') }}</th><th class="px-4 py-3 text-right">{{ __('Amount') }}</th></tr></thead>
+                            <tbody class="divide-y divide-slate-200">
+                                @forelse ($expenses['by_category'] as $category => $amount)
+                                    <tr><td class="px-4 py-3 font-semibold">{{ $category }}</td><td class="px-4 py-3 text-right">{{ $money($amount) }}</td></tr>
+                                @empty
+                                    <tr><td colspan="2" class="px-4 py-8 text-center text-slate-500">{{ __('No expense data found.') }}</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </section>
 
@@ -281,6 +365,33 @@
                     datasets: [{ data: @js($conversion['by_status']->values()), backgroundColor: palette }]
                 },
                 options: { maintainAspectRatio: false }
+            });
+
+            makeChart('expenseTrendChart', {
+                type: 'line',
+                data: {
+                    labels: @js($expenses['monthly']->keys()->values()),
+                    datasets: [{ label: 'Expenses', data: @js($expenses['monthly']->values()), borderColor: '#ea580c', backgroundColor: 'rgba(234,88,12,0.12)', fill: true, tension: 0.3 }]
+                },
+                options: { maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+
+            makeChart('expenseCategoryChart', {
+                type: 'bar',
+                data: {
+                    labels: @js($expenses['by_category']->keys()->values()),
+                    datasets: [{ label: 'Amount', data: @js($expenses['by_category']->values()), backgroundColor: '#f97316' }]
+                },
+                options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+
+            makeChart('profitLossChart', {
+                type: 'bar',
+                data: {
+                    labels: @js($profitLoss['rows']->pluck('type')->values()),
+                    datasets: [{ label: 'Amount', data: @js($profitLoss['rows']->pluck('amount')->values()), backgroundColor: ['#059669', '#f97316', '#2563eb'] }]
+                },
+                options: { maintainAspectRatio: false, plugins: { legend: { display: false } } }
             });
         });
     </script>

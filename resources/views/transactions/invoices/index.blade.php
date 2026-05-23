@@ -12,22 +12,6 @@
 
     <div class="py-8" x-data="{ quotationPickerOpen: false }">
         <div class="mx-auto max-w-7xl space-y-6 px-4 sm:px-6 lg:px-8">
-            @foreach ([
-                'invoice-created' => 'Invoice created successfully.',
-                'invoice-updated' => 'Invoice updated successfully.',
-                'invoice-deleted' => 'Invoice deleted successfully.',
-                'invoice-sent' => 'Invoice email sent successfully.',
-                'invoice-reminder-sent' => 'Reminder email sent successfully.',
-                'invoice-overdue-sent' => 'Overdue email sent successfully.',
-                'invoice-email-not-configured' => 'Email settings or client email are missing. Please update Email Settings and Client details first.',
-                'invoice-reminder-not-ready' => 'Reminder email can be sent only 24 hours before the due date for invoices with a balance due.',
-                'invoice-overdue-not-ready' => 'Overdue email can be sent only from the day after the due date for invoices with a balance due.',
-            ] as $key => $message)
-                @if (session('status') === $key)
-                    <div class="rounded-md {{ in_array($key, ['invoice-email-not-configured', 'invoice-reminder-not-ready', 'invoice-overdue-not-ready'], true) ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700' }} p-4 text-sm font-medium">{{ __($message) }}</div>
-                @endif
-            @endforeach
-
             @if ($sourceQuotation)
                 <div class="rounded-md bg-indigo-50 p-4 text-sm font-medium text-indigo-800">
                     {{ __('Loaded approved quotation') }} {{ $sourceQuotation->quotation_no }} {{ __('into the invoice form. Review and save to create an invoice.') }}

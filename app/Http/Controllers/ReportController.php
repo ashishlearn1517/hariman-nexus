@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Exports\ReportRowsExport;
 use App\Models\Client;
+use App\Models\Expense;
 use App\Models\Invoice;
 use App\Models\InvoicePayment;
+use App\Models\Project;
 use App\Models\Quotation;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
@@ -31,6 +33,9 @@ class ReportController extends Controller
             'clientStatement' => $this->clientStatement($filters),
             'collections' => $this->collectionReport($filters),
             'conversion' => $this->conversionReport($filters),
+            'expenses' => $this->expenseReport($filters),
+            'profitLoss' => $this->profitLossReport($filters),
+            'projectProfitability' => $this->projectProfitabilityReport($filters),
         ];
 
         if ($request->query('export')) {
@@ -240,6 +245,98 @@ class ReportController extends Controller
         ];
     }
 
+    /**
+     * @param array<string, string> $filters
+     * @return array<string, mixed>
+     */
+    private function expenseReport(array $filters): array
+    {
+        $expenses = Expense::query()
+            ->with(['category', 'project'])
+            ->whereBetween('expense_date', [$filters['date_from'], $filters['date_to']])
+            ->whereNot('status', Expense::STATUS_CANCELLED)
+            ->get();
+
+        return [
+            'total' => (float) $expenses->sum('total_amount'),
+            'count' => $expenses->count(),
+            'average' => $expenses->count() ? round((float) $expenses->avg('total_amount'), 2) : 0,
+            'monthly' => $expenses
+                ->groupBy(fn (Expense $expense) => $expense->expense_date?->format('M Y'))
+                ->map(fn (Collection $rows) => round((float) $rows->sum('total_amount'), 2)),
+            'by_category' => $expenses
+                ->groupBy(fn (Expense $expense) => $expense->category?->category_name ?? 'Uncategorized')
+                ->map(fn (Collection $rows) => round((float) $rows->sum('total_amount'), 2))
+                ->sortDesc(),
+            'by_vendor' => $expenses
+                ->groupBy(fn (Expense $expense) => $expense->vendor?->vendor_name ?? $expense->vendor_name ?? 'No Vendor')
+                ->map(fn (Collection $rows) => round((float) $rows->sum('total_amount'), 2))
+                ->sortDesc(),
+            'rows' => $expenses->sortByDesc('expense_date')->values(),
+        ];
+    }
+
+    /**
+     * @param array<string, string> $filters
+     * @return array<string, mixed>
+     */
+    private function profitLossReport(array $filters): array
+    {
+        $revenue = (float) $this->paymentScope($filters)->sum('amount');
+        $expenses = (float) Expense::query()
+            ->whereBetween('expense_date', [$filters['date_from'], $filters['date_to']])
+            ->whereNot('status', Expense::STATUS_CANCELLED)
+            ->sum('total_amount');
+
+        return [
+            'revenue' => $revenue,
+            'expenses' => $expenses,
+            'profit' => $revenue - $expenses,
+            'rows' => collect([
+                ['type' => 'Revenue', 'amount' => $revenue],
+                ['type' => 'Expenses', 'amount' => $expenses],
+                ['type' => 'Profit', 'amount' => $revenue - $expenses],
+            ]),
+        ];
+    }
+
+    /**
+     * @param array<string, string> $filters
+     * @return array<string, mixed>
+     */
+    private function projectProfitabilityReport(array $filters): array
+    {
+        $projects = Project::query()
+            ->with(['invoices' => fn ($query) => $query
+                ->whereBetween('invoice_date', [$filters['date_from'], $filters['date_to']])
+                ->whereNot('status', Invoice::STATUS_CANCELLED),
+                'expenses' => fn ($query) => $query
+                    ->whereBetween('expense_date', [$filters['date_from'], $filters['date_to']])
+                    ->whereNot('status', Expense::STATUS_CANCELLED),
+            ])
+            ->orderBy('name')
+            ->get();
+
+        $rows = $projects->map(function (Project $project): array {
+            $revenue = (float) $project->invoices->sum('total');
+            $expenses = (float) $project->expenses->sum('total_amount');
+
+            return [
+                'project' => $project->name,
+                'revenue' => $revenue,
+                'expenses' => $expenses,
+                'profit' => $revenue - $expenses,
+            ];
+        })->filter(fn (array $row) => $row['revenue'] > 0 || $row['expenses'] > 0)->values();
+
+        return [
+            'rows' => $rows,
+            'total_revenue' => (float) $rows->sum('revenue'),
+            'total_expenses' => (float) $rows->sum('expenses'),
+            'total_profit' => (float) $rows->sum('profit'),
+        ];
+    }
+
     private function daysOverdue(Invoice $invoice): int
     {
         if (! $invoice->due_date || ! $invoice->due_date->isPast()) {
@@ -329,6 +426,28 @@ class ReportController extends Controller
                 $quotation->total,
                 $quotation->invoices->pluck('invoice_no')->join('|'),
             ]),
+            'expenses' => $data['expenses']['rows']->map(fn (Expense $expense) => [
+                $expense->expense_no,
+                $expense->expense_date?->toDateString(),
+                $expense->category?->category_name,
+                $expense->project?->name,
+                $expense->vendor_name,
+                $expense->payment_method,
+                $expense->status,
+                $expense->amount,
+                $expense->tax_amount,
+                $expense->total_amount,
+            ]),
+            'profit_loss' => $data['profitLoss']['rows']->map(fn (array $row) => [
+                $row['type'],
+                $row['amount'],
+            ]),
+            'project_profitability' => $data['projectProfitability']['rows']->map(fn (array $row) => [
+                $row['project'],
+                $row['revenue'],
+                $row['expenses'],
+                $row['profit'],
+            ]),
             default => collect(),
         };
 
@@ -338,6 +457,9 @@ class ReportController extends Controller
             'client_statement' => ['Date', 'Type', 'Reference', 'Client', 'Debit', 'Credit', 'Balance'],
             'collections' => ['Date', 'Invoice', 'Client', 'Method', 'Amount', 'Reference'],
             'conversion' => ['Quotation', 'Date', 'Client', 'Currency', 'Status', 'Total', 'Invoices'],
+            'expenses' => ['Expense', 'Date', 'Category', 'Project', 'Vendor', 'Payment Method', 'Status', 'Amount', 'Tax', 'Total'],
+            'profit_loss' => ['Type', 'Amount'],
+            'project_profitability' => ['Project', 'Revenue', 'Expenses', 'Profit'],
             default => ['No data'],
         };
 

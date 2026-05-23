@@ -27,20 +27,23 @@ class NumberingSettingController extends Controller
             'product_prefix' => ['required', 'string', 'max:10', 'regex:/^[A-Za-z0-9]+$/'],
             'invoice_prefix' => ['required', 'string', 'max:10', 'regex:/^[A-Za-z0-9]+$/'],
             'quotation_prefix' => ['required', 'string', 'max:10', 'regex:/^[A-Za-z0-9]+$/'],
+            'expense_prefix' => ['required', 'string', 'max:10', 'regex:/^[A-Za-z0-9]+$/'],
             'next_local_client_number' => ['required', 'integer', 'min:1'],
             'next_abroad_client_number' => ['required', 'integer', 'min:1'],
             'next_product_number' => ['required', 'integer', 'min:1'],
             'next_invoice_number' => ['required', 'integer', 'min:1'],
             'next_quotation_number' => ['required', 'integer', 'min:1'],
+            'next_expense_number' => ['required', 'integer', 'min:1'],
         ]);
 
-        foreach (['local_client_prefix', 'abroad_client_prefix', 'product_prefix', 'invoice_prefix', 'quotation_prefix'] as $field) {
+        foreach (['local_client_prefix', 'abroad_client_prefix', 'product_prefix', 'invoice_prefix', 'quotation_prefix', 'expense_prefix'] as $field) {
             $validated[$field] = strtoupper($validated[$field]);
         }
 
         $validated['include_year_for_clients'] = $request->boolean('include_year_for_clients');
         $validated['include_year_for_invoices'] = $request->boolean('include_year_for_invoices');
         $validated['include_year_for_quotations'] = $request->boolean('include_year_for_quotations');
+        $validated['include_year_for_expenses'] = $request->boolean('include_year_for_expenses');
 
         $numbering = NumberingSetting::current();
         $numbering->fill(array_merge($validated, [

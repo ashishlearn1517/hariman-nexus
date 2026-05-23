@@ -28,7 +28,7 @@
             <td><div class="label">Collected</div><div class="value">{{ $money($collections['total_collected']) }}</div></td>
             <td><div class="label">Outstanding</div><div class="value">{{ $money($outstanding['total_outstanding']) }}</div></td>
             <td><div class="label">Overdue</div><div class="value">{{ $money($outstanding['overdue_amount']) }}</div></td>
-            <td><div class="label">Conversion</div><div class="value">{{ $conversion['conversion_rate'] }}%</div></td>
+            <td><div class="label">Expenses</div><div class="value">{{ $money($expenses['total']) }}</div></td>
         </tr>
     </table>
 
@@ -58,6 +58,36 @@
         <tbody>
             @foreach ($collections['rows']->take(12) as $payment)
                 <tr><td>{{ $payment->payment_date?->toDateString() }}</td><td>{{ $payment->invoice?->invoice_no }}</td><td>{{ $payment->invoice?->client?->name }}</td><td>{{ $payment->payment_method }}</td><td class="right">{{ $money($payment->amount) }}</td></tr>
+            @endforeach
+        </tbody>
+    </table>
+
+    <h2>Expense Report</h2>
+    <table>
+        <thead><tr><th>Expense</th><th>Date</th><th>Category</th><th>Vendor</th><th>Method</th><th>Status</th><th class="right">Total</th></tr></thead>
+        <tbody>
+            @foreach ($expenses['rows']->take(12) as $expense)
+                <tr><td>{{ $expense->expense_no }}</td><td>{{ $expense->expense_date?->toDateString() }}</td><td>{{ $expense->category?->category_name }}</td><td>{{ $expense->vendor_name }}</td><td>{{ $expense->payment_method }}</td><td>{{ $expense->status }}</td><td class="right">{{ $money($expense->total_amount) }}</td></tr>
+            @endforeach
+        </tbody>
+    </table>
+
+    <h2>Profit & Loss Report</h2>
+    <table>
+        <thead><tr><th>Type</th><th class="right">Amount</th></tr></thead>
+        <tbody>
+            @foreach ($profitLoss['rows'] as $row)
+                <tr><td>{{ $row['type'] }}</td><td class="right">{{ $money($row['amount']) }}</td></tr>
+            @endforeach
+        </tbody>
+    </table>
+
+    <h2>Project Profitability</h2>
+    <table>
+        <thead><tr><th>Project</th><th class="right">Revenue</th><th class="right">Expense</th><th class="right">Profit</th></tr></thead>
+        <tbody>
+            @foreach ($projectProfitability['rows']->take(12) as $row)
+                <tr><td>{{ $row['project'] }}</td><td class="right">{{ $money($row['revenue']) }}</td><td class="right">{{ $money($row['expenses']) }}</td><td class="right">{{ $money($row['profit']) }}</td></tr>
             @endforeach
         </tbody>
     </table>

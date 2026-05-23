@@ -30,7 +30,6 @@
 
             <!-- Page Content -->
             <main class="flex-1">
-                <x-app-notifications />
                 {{ $slot }}
             </main>
 

@@ -12,25 +12,6 @@
 
     <div class="py-8">
         <div class="mx-auto max-w-7xl space-y-6 px-4 sm:px-6 lg:px-8">
-            @if (session('status') === 'quotation-created')
-                <div class="rounded-md bg-emerald-50 p-4 text-sm font-medium text-emerald-700">{{ __('Quotation created successfully.') }}</div>
-            @endif
-            @if (session('status') === 'quotation-updated')
-                <div class="rounded-md bg-emerald-50 p-4 text-sm font-medium text-emerald-700">{{ __('Quotation updated successfully.') }}</div>
-            @endif
-            @if (session('status') === 'quotation-deleted')
-                <div class="rounded-md bg-emerald-50 p-4 text-sm font-medium text-emerald-700">{{ __('Quotation deleted successfully.') }}</div>
-            @endif
-            @if (session('status') === 'quotation-delete-blocked-converted')
-                <div class="rounded-md bg-amber-50 p-4 text-sm font-medium text-amber-700">{{ __('This quotation is converted to invoice. Delete the connected invoice first, then delete the quotation.') }}</div>
-            @endif
-            @if (session('status') === 'quotation-sent')
-                <div class="rounded-md bg-emerald-50 p-4 text-sm font-medium text-emerald-700">{{ __('Quotation email sent successfully.') }}</div>
-            @endif
-            @if (session('status') === 'quotation-email-not-configured')
-                <div class="rounded-md bg-amber-50 p-4 text-sm font-medium text-amber-700">{{ __('Email settings or client email are missing. Please update Email Settings and Client details first.') }}</div>
-            @endif
-
             <section class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
                 <div class="border-b border-slate-200 pb-4">
                     <h3 class="text-base font-semibold text-slate-950">{{ __('Create Quotation') }}</h3>

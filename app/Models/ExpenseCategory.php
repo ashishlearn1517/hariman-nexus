@@ -3,26 +3,33 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
-class Project extends Model
+class ExpenseCategory extends Model
 {
+    use SoftDeletes;
+
     public const STATUS_ACTIVE = 'active';
     public const STATUS_INACTIVE = 'inactive';
 
     protected $fillable = [
-        'name',
-        'start_date',
-        'expected_delivery_time',
-        'awarded_to',
+        'category_code',
+        'category_name',
+        'description',
         'status',
+        'created_by',
     ];
 
-    protected function casts(): array
+    public function creator(): BelongsTo
     {
-        return [
-            'start_date' => 'date',
-        ];
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function expenses(): HasMany
+    {
+        return $this->hasMany(Expense::class);
     }
 
     /**
@@ -34,20 +41,5 @@ class Project extends Model
             self::STATUS_ACTIVE => 'Active',
             self::STATUS_INACTIVE => 'Inactive',
         ];
-    }
-
-    public function clients(): HasMany
-    {
-        return $this->hasMany(Client::class);
-    }
-
-    public function invoices(): HasMany
-    {
-        return $this->hasMany(Invoice::class);
-    }
-
-    public function expenses(): HasMany
-    {
-        return $this->hasMany(Expense::class);
     }
 }

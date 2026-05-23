@@ -2,11 +2,14 @@
 
 use App\Models\Client;
 use App\Models\Currency;
+use App\Models\Expense;
+use App\Models\ExpenseCategory;
 use App\Models\Invoice;
 use App\Models\InvoicePayment;
 use App\Models\Project;
 use App\Models\Quotation;
 use App\Models\User;
+use App\Models\Vendor;
 
 function dashboardFixtures(): void
 {
@@ -62,6 +65,32 @@ function dashboardFixtures(): void
         'payment_method' => 'bank_transfer',
     ]);
 
+    $category = ExpenseCategory::create([
+        'category_code' => 'EXC001',
+        'category_name' => 'Fuel',
+        'status' => ExpenseCategory::STATUS_ACTIVE,
+    ]);
+    $vendor = Vendor::create([
+        'vendor_code' => 'VEN001',
+        'vendor_name' => 'Fuel Vendor',
+        'status' => Vendor::STATUS_ACTIVE,
+    ]);
+
+    Expense::create([
+        'expense_no' => 'EXP-2026-0201',
+        'sequence_no' => 201,
+        'expense_date' => now()->toDateString(),
+        'expense_category_id' => $category->id,
+        'project_id' => $project->id,
+        'vendor_id' => $vendor->id,
+        'vendor_name' => $vendor->vendor_name,
+        'amount' => 100,
+        'tax_amount' => 0,
+        'total_amount' => 100,
+        'payment_method' => 'cash',
+        'status' => Expense::STATUS_PAID,
+    ]);
+
     Invoice::create([
         'invoice_no' => 'INV-2026-0202',
         'sequence_no' => 202,
@@ -107,6 +136,9 @@ test('dashboard shows live decision analytics', function () {
     $response->assertSee('Total revenue');
     $response->assertSee('Outstanding');
     $response->assertSee('Monthly collections');
+    $response->assertSee('Cash In');
+    $response->assertSee('Cash Out');
+    $response->assertSee('Net Flow');
     $response->assertSee('Quotations this month');
     $response->assertSee('Conversion %');
     $response->assertSee('Active clients');

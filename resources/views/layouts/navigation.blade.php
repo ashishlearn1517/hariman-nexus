@@ -80,6 +80,36 @@
                         </x-slot>
                     </x-dropdown>
                     @endcanany
+                    @canany(['view expense categories', 'view expenses', 'view vendors'])
+                    <x-dropdown align="left" width="48">
+                        <x-slot name="trigger">
+                            <button class="inline-flex h-16 items-center border-b-2 px-1 pt-1 {{ request()->routeIs('finance.*') ? 'border-indigo-400 text-gray-900' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700' }} text-sm font-medium leading-5 transition duration-150 ease-in-out focus:outline-none">
+                                <span>{{ __('Finance') }}</span>
+                                <svg class="ms-1 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+                                </svg>
+                            </button>
+                        </x-slot>
+
+                        <x-slot name="content">
+                            @can('view expense categories')
+                            <x-dropdown-link :href="route('finance.expense-categories.index')">
+                                {{ __('Expense Categories') }}
+                            </x-dropdown-link>
+                            @endcan
+                            @can('view expenses')
+                            <x-dropdown-link :href="route('finance.expenses.index')">
+                                {{ __('Expenses') }}
+                            </x-dropdown-link>
+                            @endcan
+                            @can('view vendors')
+                            <x-dropdown-link :href="route('finance.vendors.index')">
+                                {{ __('Vendors') }}
+                            </x-dropdown-link>
+                            @endcan
+                        </x-slot>
+                    </x-dropdown>
+                    @endcanany
                     @can('view reports')
                     <x-nav-link :href="route('reports.index')" :active="request()->routeIs('reports.*')">
                         {{ __('Reports') }}
@@ -142,7 +172,9 @@
             </div>
 
             <!-- Settings Dropdown -->
-            <div class="hidden sm:flex sm:items-center sm:ms-6">
+            <div class="hidden sm:flex sm:items-center sm:ms-6 sm:gap-2">
+                <x-notification-bell />
+
                 <x-dropdown align="right" width="48">
                     <x-slot name="trigger">
                         <button class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 bg-white hover:text-gray-700 focus:outline-none transition ease-in-out duration-150">
@@ -228,6 +260,21 @@
                 {{ __('Transactions / Invoices') }}
             </x-responsive-nav-link>
             @endcan
+            @can('view expense categories')
+            <x-responsive-nav-link :href="route('finance.expense-categories.index')" :active="request()->routeIs('finance.expense-categories.*')">
+                {{ __('Finance / Expense Categories') }}
+            </x-responsive-nav-link>
+            @endcan
+            @can('view expenses')
+            <x-responsive-nav-link :href="route('finance.expenses.index')" :active="request()->routeIs('finance.expenses.*')">
+                {{ __('Finance / Expenses') }}
+            </x-responsive-nav-link>
+            @endcan
+            @can('view vendors')
+            <x-responsive-nav-link :href="route('finance.vendors.index')" :active="request()->routeIs('finance.vendors.*')">
+                {{ __('Finance / Vendors') }}
+            </x-responsive-nav-link>
+            @endcan
             @can('view reports')
             <x-responsive-nav-link :href="route('reports.index')" :active="request()->routeIs('reports.*')">
                 {{ __('Reports') }}
@@ -264,6 +311,10 @@
 
         <!-- Responsive Settings Options -->
         <div class="pt-4 pb-1 border-t border-gray-200">
+            <div class="px-4 pb-4">
+                <x-notification-bell />
+            </div>
+
             <div class="px-4">
                 <div class="font-medium text-base text-gray-800">{{ Auth::user()->name }}</div>
                 <div class="font-medium text-sm text-gray-500">{{ Auth::user()->email }}</div>

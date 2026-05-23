@@ -60,12 +60,36 @@
                 </div>
             </section>
 
+            <section>
+                <div class="mb-3 flex items-center justify-between">
+                    <h3 class="text-base font-semibold text-slate-950">{{ __('Cash Flow') }}</h3>
+                    <span class="text-xs font-semibold uppercase tracking-widest text-slate-500">{{ __('Incoming vs outgoing') }}</span>
+                </div>
+                <div class="grid gap-4 md:grid-cols-3">
+                    <div class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                        <p class="text-sm font-medium text-slate-500">{{ __('Cash In') }}</p>
+                        <p class="mt-3 text-3xl font-semibold text-emerald-700">{{ $money($financial['monthlyCollections']) }}</p>
+                        <p class="mt-4 text-sm text-slate-500">{{ __('Invoice payments received this month') }}</p>
+                    </div>
+                    <div class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                        <p class="text-sm font-medium text-slate-500">{{ __('Cash Out') }}</p>
+                        <p class="mt-3 text-3xl font-semibold text-orange-700">{{ $money($financial['monthlyExpenses']) }}</p>
+                        <p class="mt-4 text-sm text-slate-500">{{ __('Expenses recorded this month') }}</p>
+                    </div>
+                    <div class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                        <p class="text-sm font-medium text-slate-500">{{ __('Net Flow') }}</p>
+                        <p class="mt-3 text-3xl font-semibold {{ $financial['netFlow'] >= 0 ? 'text-blue-700' : 'text-rose-700' }}">{{ $money($financial['netFlow']) }}</p>
+                        <p class="mt-4 text-sm text-slate-500">{{ __('Cash in minus cash out') }}</p>
+                    </div>
+                </div>
+            </section>
+
             <section class="grid gap-6 xl:grid-cols-[1fr_0.8fr]">
                 <div class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
                     <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                             <h3 class="text-base font-semibold text-slate-950">{{ __('Cash Movement') }}</h3>
-                            <p class="mt-1 text-sm text-slate-500">{{ __('Revenue against collections for the last six months.') }}</p>
+                            <p class="mt-1 text-sm text-slate-500">{{ __('Revenue, collections, and expenses for the last six months.') }}</p>
                         </div>
                     </div>
                     <div class="mt-5 h-72"><canvas id="dashboardCashChart"></canvas></div>
@@ -252,6 +276,7 @@
                     datasets: [
                         { label: 'Revenue', data: @js($charts['revenue']), borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,0.12)', fill: true, tension: 0.3 },
                         { label: 'Collections', data: @js($charts['collections']), borderColor: '#059669', backgroundColor: 'rgba(5,150,105,0.12)', fill: true, tension: 0.3 },
+                        { label: 'Expenses', data: @js($charts['expenses']), borderColor: '#ea580c', backgroundColor: 'rgba(234,88,12,0.12)', fill: true, tension: 0.3 },
                     ]
                 },
                 options: { maintainAspectRatio: false }

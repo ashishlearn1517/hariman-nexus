@@ -15,16 +15,19 @@ class NumberingSetting extends Model
         'include_year_for_clients',
         'include_year_for_invoices',
         'include_year_for_quotations',
+        'include_year_for_expenses',
         'local_client_prefix',
         'abroad_client_prefix',
         'product_prefix',
         'invoice_prefix',
         'quotation_prefix',
+        'expense_prefix',
         'next_local_client_number',
         'next_abroad_client_number',
         'next_product_number',
         'next_invoice_number',
         'next_quotation_number',
+        'next_expense_number',
     ];
 
     protected function casts(): array
@@ -34,11 +37,13 @@ class NumberingSetting extends Model
             'include_year_for_clients' => 'boolean',
             'include_year_for_invoices' => 'boolean',
             'include_year_for_quotations' => 'boolean',
+            'include_year_for_expenses' => 'boolean',
             'next_local_client_number' => 'integer',
             'next_abroad_client_number' => 'integer',
             'next_product_number' => 'integer',
             'next_invoice_number' => 'integer',
             'next_quotation_number' => 'integer',
+            'next_expense_number' => 'integer',
         ];
     }
 
@@ -62,16 +67,19 @@ class NumberingSetting extends Model
             'include_year_for_clients' => true,
             'include_year_for_invoices' => true,
             'include_year_for_quotations' => true,
+            'include_year_for_expenses' => true,
             'local_client_prefix' => 'LC',
             'abroad_client_prefix' => 'AC',
             'product_prefix' => 'PROD',
             'invoice_prefix' => 'INV',
             'quotation_prefix' => 'QUO',
+            'expense_prefix' => 'EXP',
             'next_local_client_number' => 1,
             'next_abroad_client_number' => 1,
             'next_product_number' => 1,
             'next_invoice_number' => 1,
             'next_quotation_number' => 1,
+            'next_expense_number' => 1,
         ];
     }
 

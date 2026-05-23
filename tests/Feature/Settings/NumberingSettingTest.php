@@ -11,16 +11,19 @@ function validNumberingPayload(array $overrides = []): array
         'include_year_for_clients' => '1',
         'include_year_for_invoices' => '1',
         'include_year_for_quotations' => '1',
+        'include_year_for_expenses' => '1',
         'local_client_prefix' => 'LC',
         'abroad_client_prefix' => 'AC',
         'product_prefix' => 'PROD',
         'invoice_prefix' => 'INV',
         'quotation_prefix' => 'QUO',
+        'expense_prefix' => 'EXP',
         'next_local_client_number' => 1,
         'next_abroad_client_number' => 1,
         'next_product_number' => 1,
         'next_invoice_number' => 1,
         'next_quotation_number' => 1,
+        'next_expense_number' => 1,
     ], $overrides);
 }
 
@@ -40,6 +43,7 @@ test('authenticated users can view numbering page', function () {
     $response->assertSee('Number Formats');
     $response->assertSee('Current Preview');
     $response->assertSee('INV-'.now()->year.'-0001');
+    $response->assertSee('EXP-'.now()->year.'-0001');
 });
 
 test('numbering required fields are validated', function () {
@@ -52,7 +56,9 @@ test('numbering required fields are validated', function () {
         'padding',
         'local_client_prefix',
         'invoice_prefix',
+        'expense_prefix',
         'next_invoice_number',
+        'next_expense_number',
     ]);
 });
 
@@ -64,6 +70,8 @@ test('authenticated users can save numbering settings', function () {
         'padding' => 5,
         'invoice_prefix' => 'HNINV',
         'next_invoice_number' => 42,
+        'expense_prefix' => 'HNEXP',
+        'next_expense_number' => 9,
     ]));
 
     $response->assertRedirect(route('settings.numbering.edit', absolute: false));
@@ -73,6 +81,8 @@ test('authenticated users can save numbering settings', function () {
         'padding' => 5,
         'invoice_prefix' => 'HNINV',
         'next_invoice_number' => 42,
+        'expense_prefix' => 'HNEXP',
+        'next_expense_number' => 9,
         'include_year_for_invoices' => true,
     ]);
 });
@@ -84,6 +94,7 @@ test('year toggles can be disabled', function () {
         'include_year_for_clients' => null,
         'include_year_for_invoices' => null,
         'include_year_for_quotations' => null,
+        'include_year_for_expenses' => null,
     ]));
 
     $response->assertRedirect(route('settings.numbering.edit', absolute: false));
@@ -91,5 +102,6 @@ test('year toggles can be disabled', function () {
         'include_year_for_clients' => false,
         'include_year_for_invoices' => false,
         'include_year_for_quotations' => false,
+        'include_year_for_expenses' => false,
     ]);
 });

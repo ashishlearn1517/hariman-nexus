@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Client;
+use App\Models\Expense;
 use App\Models\Invoice;
 use App\Models\InvoicePayment;
 use App\Models\Project;
@@ -30,6 +31,10 @@ class DashboardController extends Controller
         $monthlyCollections = (float) InvoicePayment::query()
             ->whereBetween('payment_date', [$monthStart, $monthEnd])
             ->sum('amount');
+        $monthlyExpenses = (float) Expense::query()
+            ->whereBetween('expense_date', [$monthStart, $monthEnd])
+            ->whereNot('status', Expense::STATUS_CANCELLED)
+            ->sum('total_amount');
 
         $quotationsThisMonth = Quotation::query()
             ->whereBetween('quotation_date', [$monthStart, $monthEnd])
@@ -83,6 +88,8 @@ class DashboardController extends Controller
                 'outstanding' => $outstanding,
                 'overdue' => $overdueAmount,
                 'monthlyCollections' => $monthlyCollections,
+                'monthlyExpenses' => $monthlyExpenses,
+                'netFlow' => $monthlyCollections - $monthlyExpenses,
                 'currencyBreakdown' => $this->currencyBreakdown(),
             ],
             'operations' => [
@@ -101,6 +108,7 @@ class DashboardController extends Controller
                 'cashMonths' => $this->lastSixMonths()->map(fn (Carbon $month) => $month->format('M Y'))->values(),
                 'revenue' => $this->monthlyInvoiceTotals(),
                 'collections' => $this->monthlyCollectionTotals(),
+                'expenses' => $this->monthlyExpenseTotals(),
                 'quotationPipeline' => [
                     'Draft' => Quotation::query()->where('status', Quotation::STATUS_DRAFT)->count(),
                     'Sent' => Quotation::query()->where('status', Quotation::STATUS_SENT)->count(),
@@ -143,5 +151,13 @@ class DashboardController extends Controller
         return $this->lastSixMonths()->map(fn (Carbon $month) => (float) InvoicePayment::query()
             ->whereBetween('payment_date', [$month->copy()->startOfMonth(), $month->copy()->endOfMonth()])
             ->sum('amount'));
+    }
+
+    private function monthlyExpenseTotals(): Collection
+    {
+        return $this->lastSixMonths()->map(fn (Carbon $month) => (float) Expense::query()
+            ->whereNot('status', Expense::STATUS_CANCELLED)
+            ->whereBetween('expense_date', [$month->copy()->startOfMonth(), $month->copy()->endOfMonth()])
+            ->sum('total_amount'));
     }
 }

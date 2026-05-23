@@ -2,11 +2,14 @@
 
 use App\Models\Client;
 use App\Models\Currency;
+use App\Models\Expense;
+use App\Models\ExpenseCategory;
 use App\Models\Invoice;
 use App\Models\InvoicePayment;
 use App\Models\Project;
 use App\Models\Quotation;
 use App\Models\User;
+use App\Models\Vendor;
 
 function reportFixtures(): array
 {
@@ -62,6 +65,32 @@ function reportFixtures(): array
         'payment_method' => 'bank_transfer',
     ]);
 
+    $expenseCategory = ExpenseCategory::create([
+        'category_code' => 'EXC001',
+        'category_name' => 'Travel',
+        'status' => ExpenseCategory::STATUS_ACTIVE,
+    ]);
+    $vendor = Vendor::create([
+        'vendor_code' => 'VEN001',
+        'vendor_name' => 'Report Vendor',
+        'status' => Vendor::STATUS_ACTIVE,
+    ]);
+
+    Expense::create([
+        'expense_no' => 'EXP-2026-0101',
+        'sequence_no' => 101,
+        'expense_date' => '2026-05-15',
+        'expense_category_id' => $expenseCategory->id,
+        'project_id' => $project->id,
+        'vendor_id' => $vendor->id,
+        'vendor_name' => $vendor->vendor_name,
+        'amount' => 400,
+        'tax_amount' => 40,
+        'total_amount' => 440,
+        'payment_method' => 'online_payment',
+        'status' => Expense::STATUS_PAID,
+    ]);
+
     Quotation::create([
         'quotation_no' => 'QUO-2026-0101',
         'sequence_no' => 101,
@@ -96,6 +125,12 @@ test('users with report permission can view reporting workspace', function () {
     $response->assertSee('Client Statement');
     $response->assertSee('Payment Collection Report');
     $response->assertSee('Quotation Conversion Report');
+    $response->assertSee('Monthly Expense Summary');
+    $response->assertSee('Expense By Category');
+    $response->assertSee('Profit & Loss Report');
+    $response->assertSee('Project Profitability');
+    $response->assertSee('Report Project');
+    $response->assertSee('Travel');
     $response->assertSee('INV-2026-0101');
 });
 
@@ -129,4 +164,40 @@ test('reports can be exported as excel', function () {
 
     $response->assertOk();
     expect($response->headers->get('content-disposition'))->toContain('revenue-report.xlsx');
+});
+
+test('expense report can be exported as csv and excel', function () {
+    $user = User::factory()->create();
+    reportFixtures();
+
+    $csv = $this->actingAs($user)->get('/reports?date_from=2026-05-01&date_to=2026-05-31&export=expenses');
+    $xlsx = $this->actingAs($user)->get('/reports?date_from=2026-05-01&date_to=2026-05-31&export=expenses_xlsx');
+
+    $csv->assertOk();
+    expect($csv->headers->get('content-disposition'))->toContain('expenses-report.csv');
+
+    $xlsx->assertOk();
+    expect($xlsx->headers->get('content-disposition'))->toContain('expenses-report.xlsx');
+});
+
+test('profit and project reports can be exported as csv and excel', function () {
+    $user = User::factory()->create();
+    reportFixtures();
+
+    $profitCsv = $this->actingAs($user)->get('/reports?date_from=2026-05-01&date_to=2026-05-31&export=profit_loss');
+    $profitXlsx = $this->actingAs($user)->get('/reports?date_from=2026-05-01&date_to=2026-05-31&export=profit_loss_xlsx');
+    $projectCsv = $this->actingAs($user)->get('/reports?date_from=2026-05-01&date_to=2026-05-31&export=project_profitability');
+    $projectXlsx = $this->actingAs($user)->get('/reports?date_from=2026-05-01&date_to=2026-05-31&export=project_profitability_xlsx');
+
+    $profitCsv->assertOk();
+    expect($profitCsv->headers->get('content-disposition'))->toContain('profit_loss-report.csv');
+
+    $profitXlsx->assertOk();
+    expect($profitXlsx->headers->get('content-disposition'))->toContain('profit_loss-report.xlsx');
+
+    $projectCsv->assertOk();
+    expect($projectCsv->headers->get('content-disposition'))->toContain('project_profitability-report.csv');
+
+    $projectXlsx->assertOk();
+    expect($projectXlsx->headers->get('content-disposition'))->toContain('project_profitability-report.xlsx');
 });

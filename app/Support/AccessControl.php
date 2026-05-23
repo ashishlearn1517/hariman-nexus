@@ -44,6 +44,18 @@ class AccessControl
         'delete users',
         'view activity logs',
         'view reports',
+        'view expense categories',
+        'create expense categories',
+        'edit expense categories',
+        'delete expense categories',
+        'view expenses',
+        'create expenses',
+        'edit expenses',
+        'delete expenses',
+        'view vendors',
+        'create vendors',
+        'edit vendors',
+        'delete vendors',
     ];
 
     public static function rolePermissions(): array
@@ -58,6 +70,9 @@ class AccessControl
             'view quotations',
             'view invoices',
             'view reports',
+            'view expense categories',
+            'view expenses',
+            'view vendors',
         ];
 
         return [
@@ -78,6 +93,18 @@ class AccessControl
                 'send invoices',
                 'manage payments',
                 'view reports',
+                'view expense categories',
+                'create expense categories',
+                'edit expense categories',
+                'delete expense categories',
+                'view expenses',
+                'create expenses',
+                'edit expenses',
+                'delete expenses',
+                'view vendors',
+                'create vendors',
+                'edit vendors',
+                'delete vendors',
             ],
             User::ROLE_OPERATIONS_STAFF => [
                 'view dashboard',

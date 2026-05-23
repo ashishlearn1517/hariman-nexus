@@ -16,6 +16,9 @@ use App\Http\Controllers\Transactions\InvoiceController;
 use App\Http\Controllers\Transactions\QuotationController;
 use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\Finance\ExpenseCategoryController;
+use App\Http\Controllers\Finance\ExpenseController;
+use App\Http\Controllers\Finance\VendorController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -94,6 +97,22 @@ Route::middleware('auth')->group(function () {
     Route::post('/transactions/invoices/{invoice}/send-reminder', [InvoiceController::class, 'sendReminder'])->middleware('can:send invoices')->name('transactions.invoices.send-reminder');
     Route::post('/transactions/invoices/{invoice}/send-overdue', [InvoiceController::class, 'sendOverdue'])->middleware('can:send invoices')->name('transactions.invoices.send-overdue');
     Route::get('/transactions/invoices/{invoice}', [InvoiceController::class, 'show'])->middleware('can:view invoices')->name('transactions.invoices.show');
+
+    Route::get('/finance/expense-categories', [ExpenseCategoryController::class, 'index'])->middleware('can:view expense categories')->name('finance.expense-categories.index');
+    Route::post('/finance/expense-categories', [ExpenseCategoryController::class, 'store'])->middleware('can:create expense categories')->name('finance.expense-categories.store');
+    Route::get('/finance/expense-categories/{expenseCategory}/edit', [ExpenseCategoryController::class, 'edit'])->middleware('can:edit expense categories')->name('finance.expense-categories.edit');
+    Route::patch('/finance/expense-categories/{expenseCategory}', [ExpenseCategoryController::class, 'update'])->middleware('can:edit expense categories')->name('finance.expense-categories.update');
+    Route::delete('/finance/expense-categories/{expenseCategory}', [ExpenseCategoryController::class, 'destroy'])->middleware('can:delete expense categories')->name('finance.expense-categories.destroy');
+    Route::get('/finance/expenses', [ExpenseController::class, 'index'])->middleware('can:view expenses')->name('finance.expenses.index');
+    Route::post('/finance/expenses', [ExpenseController::class, 'store'])->middleware('can:create expenses')->name('finance.expenses.store');
+    Route::get('/finance/expenses/{expense}/edit', [ExpenseController::class, 'edit'])->middleware('can:edit expenses')->name('finance.expenses.edit');
+    Route::patch('/finance/expenses/{expense}', [ExpenseController::class, 'update'])->middleware('can:edit expenses')->name('finance.expenses.update');
+    Route::delete('/finance/expenses/{expense}', [ExpenseController::class, 'destroy'])->middleware('can:delete expenses')->name('finance.expenses.destroy');
+    Route::get('/finance/vendors', [VendorController::class, 'index'])->middleware('can:view vendors')->name('finance.vendors.index');
+    Route::post('/finance/vendors', [VendorController::class, 'store'])->middleware('can:create vendors')->name('finance.vendors.store');
+    Route::get('/finance/vendors/{vendor}/edit', [VendorController::class, 'edit'])->middleware('can:edit vendors')->name('finance.vendors.edit');
+    Route::patch('/finance/vendors/{vendor}', [VendorController::class, 'update'])->middleware('can:edit vendors')->name('finance.vendors.update');
+    Route::delete('/finance/vendors/{vendor}', [VendorController::class, 'destroy'])->middleware('can:delete vendors')->name('finance.vendors.destroy');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');

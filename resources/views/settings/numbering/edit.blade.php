@@ -25,7 +25,7 @@
                 <section class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
                     <div class="border-b border-slate-200 pb-4">
                         <h3 class="text-base font-semibold text-slate-950">{{ __('Number Formats') }}</h3>
-                        <p class="mt-1 text-sm text-slate-500">{{ __('Set prefixes and sequence behavior for clients, products, invoices, and quotations.') }}</p>
+                        <p class="mt-1 text-sm text-slate-500">{{ __('Set prefixes and sequence behavior for clients, products, invoices, quotations, and expenses.') }}</p>
                     </div>
 
                     <div class="mt-5 grid gap-5 lg:grid-cols-2">
@@ -47,6 +47,7 @@
                             ['product_prefix', 'Product Prefix'],
                             ['invoice_prefix', 'Invoice Prefix'],
                             ['quotation_prefix', 'Quotation Prefix'],
+                            ['expense_prefix', 'Expense Prefix'],
                         ] as [$field, $label])
                             <div>
                                 <x-input-label for="{{ $field }}" :value="__($label)" />
@@ -61,6 +62,7 @@
                             ['include_year_for_clients', 'Include year in client codes'],
                             ['include_year_for_invoices', 'Include year in invoice numbers'],
                             ['include_year_for_quotations', 'Include year in quotation numbers'],
+                            ['include_year_for_expenses', 'Include year in expense numbers'],
                         ] as [$field, $label])
                             <label class="flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
                                 <input type="checkbox" name="{{ $field }}" value="1" class="mt-1 rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" @checked(old($field, $numbering->{$field}))>
@@ -80,6 +82,7 @@
                                 ['next_product_number', 'Next Product'],
                                 ['next_invoice_number', 'Next Invoice'],
                                 ['next_quotation_number', 'Next Quotation'],
+                                ['next_expense_number', 'Next Expense'],
                             ] as [$field, $label])
                                 <div>
                                     <x-input-label for="{{ $field }}" :value="__($label)" />
@@ -98,6 +101,7 @@
                             <div class="flex justify-between gap-3"><span class="text-slate-500">{{ __('Product') }}</span><strong class="text-slate-950">{{ $numbering->preview($numbering->product_prefix, $numbering->next_product_number) }}</strong></div>
                             <div class="flex justify-between gap-3"><span class="text-slate-500">{{ __('Invoice') }}</span><strong class="text-slate-950">{{ $numbering->preview($numbering->invoice_prefix, $numbering->next_invoice_number, $numbering->include_year_for_invoices) }}</strong></div>
                             <div class="flex justify-between gap-3"><span class="text-slate-500">{{ __('Quotation') }}</span><strong class="text-slate-950">{{ $numbering->preview($numbering->quotation_prefix, $numbering->next_quotation_number, $numbering->include_year_for_quotations) }}</strong></div>
+                            <div class="flex justify-between gap-3"><span class="text-slate-500">{{ __('Expense') }}</span><strong class="text-slate-950">{{ $numbering->preview($numbering->expense_prefix, $numbering->next_expense_number, $numbering->include_year_for_expenses) }}</strong></div>
                         </div>
                     </section>
 
