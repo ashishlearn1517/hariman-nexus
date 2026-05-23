@@ -1,59 +1,109 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Hariman Nexus
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+**A modern business operations platform** built with Laravel 12 — covering invoicing, quotations, payments, client management, and financial reporting. Designed to grow into a full ERP system.
 
-## About Laravel
+🔗 **Live Demo:** [nexus.hariman.co.in](https://nexus.hariman.co.in)
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+---
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## What it does
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+Hariman Nexus handles the full sales and billing lifecycle for service and product businesses:
 
-## Learning Laravel
+- **Quotations** — create, send, approve, reject, or convert to invoice with one click
+- **Invoices** — full lifecycle from draft to paid, with partial payment support and overdue tracking
+- **Payment recording** — multiple payment methods, receipt uploads, automatic balance reconciliation
+- **Client & project management** — with per-client tax configuration and status tracking
+- **Products & services catalogue** — reusable line items for fast invoice creation
+- **Financial reports** — revenue summaries, payment status breakdowns, Excel export
+- **Email dispatch** — send invoices, payment reminders, and overdue notices with PDF attachments
+- **Role-based access control** — 5 roles (Super Admin, Admin, Accountant, Operations Staff, Viewer) with granular permissions
+- **Activity logging** — full audit trail of every action across the system
+- **Multi-currency support** — configurable currencies with default selection
+- **Company settings** — logo, payment details, tax registration, bank information
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+---
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+## Tech stack
 
-## Laravel Sponsors
+| Layer | Technology |
+|---|---|
+| Framework | Laravel 12 (PHP 8.2+) |
+| Frontend | Blade + Tailwind CSS + Alpine.js |
+| Database | SQLite (dev) / MySQL or PostgreSQL (production) |
+| PDF generation | barryvdh/laravel-dompdf |
+| Excel export | maatwebsite/laravel-excel |
+| Permissions | spatie/laravel-permission |
+| Auth | Laravel Breeze |
+| Build tools | Vite |
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+---
 
-### Premium Partners
+## Architecture highlights
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+- **RBAC with Spatie Permissions** — granular permission system across 36 defined permissions, mapped to 5 roles
+- **Financial integrity** — all monetary calculations use `decimal:2` casts, DB transactions wrap multi-step writes, and sequence numbers use `lockForUpdate()` to prevent race conditions
+- **Quotation → Invoice conversion** — approved quotations can be converted to invoices with line items pre-filled
+- **Soft deletes** — invoices, quotations, and payments use soft deletes to preserve audit history
+- **Demo mode** — baseline snapshot/restore system for live demo environments with automatic data purging
 
-## Contributing
+---
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## Getting started
 
-## Code of Conduct
+```bash
+# Clone the repository
+git clone https://github.com/ashishlearn1517/hariman-nexus.git
+cd hariman-nexus
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+# Install dependencies and set up
+composer run setup
 
-## Security Vulnerabilities
+# Start development server
+composer run dev
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+Then visit `http://localhost:8000`
+
+**Requirements:** PHP 8.2+, Composer, Node.js 18+
+
+---
+
+## Roadmap
+
+The platform is being actively developed toward full ERP capability:
+
+- [ ] Purchase orders and vendor management
+- [ ] Inventory and stock tracking
+- [ ] Chart of accounts and double-entry bookkeeping
+- [ ] HR and payroll module
+- [ ] Client self-service portal
+- [ ] Budget management and forecasting
+- [ ] Payment gateway integration (Stripe / Paystack / Flutterwave)
+- [ ] Multi-tenancy (SaaS mode)
+- [ ] REST API for mobile and third-party integrations
+
+---
+
+## Security
+
+This application handles financial data. Security measures in place:
+
+- SMTP credentials encrypted at rest using Laravel's `encrypted` cast
+- CSRF protection on all forms
+- Permission checks on every route using Laravel Gates
+- Rate limiting on authentication endpoints
+- Input validation with `Rule::exists()` for all foreign key references
+- File upload MIME type validation
+
+To report a security vulnerability, please contact via GitHub Issues.
+
+---
 
 ## License
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+MIT License. See [LICENSE](LICENSE) for details.
+
+---
+
+*Built by Ashish — 17 years of enterprise application development, now modernising onto Laravel and cloud-native platforms.*
